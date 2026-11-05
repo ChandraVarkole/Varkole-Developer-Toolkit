@@ -20,11 +20,7 @@ import {
   type UiResponse,
 } from '@varkole/shared';
 import { requestAiResponse, validateAiConfig, type AiSessionConfig } from './ai-provider';
-import {
-  createRememberedAiConfig,
-  isRememberedAiConfigActive,
-  type RememberedAiConfig,
-} from './ai-session';
+import { createAiDataConsent, isAiDataConsentActive, type AiDataConsent } from './ai-consent';
 import { addQueryHistoryEntry } from './query-history';
 import {
   cookieMatchesOrg,
@@ -39,7 +35,8 @@ const ORGS_KEY = 'org-metadata-v1';
 const SELECTED_ORG_KEY = 'selected-org-v1';
 const TOKEN_PREFIX = 'org-token-v1:';
 const AI_CONFIG_KEY = 'ai-provider-session-v1';
-const AI_REMEMBERED_CONFIG_KEY = 'ai-provider-remembered-v1';
+const AI_DATA_CONSENT_KEY = 'ai-data-consent-v1';
+const LEGACY_AI_REMEMBERED_CONFIG_KEY = 'ai-provider-remembered-v1';
 const QUERY_HISTORY_PREFIX = 'soql-history-v1:';
 
 interface OrgTokenSession {
@@ -85,6 +82,7 @@ chrome.runtime.onInstalled.addListener(() => {
 void Promise.all([
   chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' }),
   chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' }),
+  chrome.storage.local.remove(LEGACY_AI_REMEMBERED_CONFIG_KEY),
 ]);
 
 chrome.action.onClicked.addListener((tab) => {
@@ -155,14 +153,17 @@ async function handleRequest(request: UiRequest): Promise<unknown> {
       return clearQueryHistory(request.payload.key);
     case 'CONFIGURE_AI':
       return configureAi(request.payload);
+    case 'GRANT_AI_DATA_CONSENT':
+      return grantAiDataConsent();
     case 'DISCONNECT_AI':
       await Promise.all([
-        chrome.storage.session.remove(AI_CONFIG_KEY),
-        chrome.storage.local.remove(AI_REMEMBERED_CONFIG_KEY),
+        chrome.storage.session.remove([AI_CONFIG_KEY, AI_DATA_CONSENT_KEY]),
+        chrome.storage.local.remove(LEGACY_AI_REMEMBERED_CONFIG_KEY),
       ]);
       return getAiStatus();
     case 'ASK_AI': {
       const config = await requireAiConfig();
+      await requireAiDataConsent(config.provider);
       return requestAiResponse(
         config,
         request.payload.messages,
@@ -731,14 +732,16 @@ function tokenKey(key: string) {
 }
 
 async function getAiStatus(): Promise<AiConnectionStatus> {
-  const { config, rememberedUntil } = await loadAiConfig();
+  const config = await loadAiConfig();
   if (!config) return { configured: false };
+  const stored = await chrome.storage.session.get(AI_DATA_CONSENT_KEY);
+  const consent = stored[AI_DATA_CONSENT_KEY] as AiDataConsent | undefined;
   return {
     configured: true,
     provider: config.provider,
     model: config.model,
     ...(config.region ? { region: config.region } : {}),
-    ...(rememberedUntil ? { rememberedUntil } : {}),
+    dataConsentGranted: isAiDataConsentActive(consent, config.provider),
   };
 }
 
@@ -747,9 +750,8 @@ async function configureAi(input: {
   apiKey: string;
   model: string;
   region?: string;
-  rememberForEightHours?: boolean;
 }): Promise<AiConnectionStatus> {
-  const { config: previous } = await loadAiConfig();
+  const previous = await loadAiConfig();
   const config: AiSessionConfig = {
     provider: input.provider,
     apiKey: input.apiKey.trim() || (previous?.provider === input.provider ? previous.apiKey : ''),
@@ -762,19 +764,24 @@ async function configureAi(input: {
     [{ role: 'user', content: 'Connection test. Reply with the single word CONNECTED.' }],
     'No Salesforce data is included in this connection test.',
   );
-  await chrome.storage.session.set({ [AI_CONFIG_KEY]: config });
-  if (input.rememberForEightHours) {
-    await chrome.storage.local.set({
-      [AI_REMEMBERED_CONFIG_KEY]: createRememberedAiConfig(config),
-    });
-  } else {
-    await chrome.storage.local.remove(AI_REMEMBERED_CONFIG_KEY);
-  }
+  await Promise.all([
+    chrome.storage.session.set({ [AI_CONFIG_KEY]: config }),
+    chrome.storage.session.remove(AI_DATA_CONSENT_KEY),
+    chrome.storage.local.remove(LEGACY_AI_REMEMBERED_CONFIG_KEY),
+  ]);
+  return getAiStatus();
+}
+
+async function grantAiDataConsent(): Promise<AiConnectionStatus> {
+  const config = await requireAiConfig();
+  await chrome.storage.session.set({
+    [AI_DATA_CONSENT_KEY]: createAiDataConsent(config.provider),
+  });
   return getAiStatus();
 }
 
 async function requireAiConfig(): Promise<AiSessionConfig> {
-  const { config } = await loadAiConfig();
+  const config = await loadAiConfig();
   if (!config) {
     throw new AppError({
       code: 'AUTH_CONFIG',
@@ -786,42 +793,28 @@ async function requireAiConfig(): Promise<AiSessionConfig> {
   return config;
 }
 
-async function loadAiConfig(): Promise<{
-  config?: AiSessionConfig;
-  rememberedUntil?: string;
-}> {
-  const [sessionStored, localStored] = await Promise.all([
-    chrome.storage.session.get(AI_CONFIG_KEY),
-    chrome.storage.local.get(AI_REMEMBERED_CONFIG_KEY),
-  ]);
-  const sessionConfig = sessionStored[AI_CONFIG_KEY] as AiSessionConfig | undefined;
-  const remembered = localStored[AI_REMEMBERED_CONFIG_KEY] as RememberedAiConfig | undefined;
-  if (!isRememberedAiConfigActive(remembered)) {
-    if (remembered) {
-      await Promise.all([
-        chrome.storage.local.remove(AI_REMEMBERED_CONFIG_KEY),
-        chrome.storage.session.remove(AI_CONFIG_KEY),
-      ]);
-      return {};
-    }
-    return sessionConfig ? { config: sessionConfig } : {};
-  }
+async function requireAiDataConsent(provider: AiProvider): Promise<void> {
+  const stored = await chrome.storage.session.get(AI_DATA_CONSENT_KEY);
+  const consent = stored[AI_DATA_CONSENT_KEY] as AiDataConsent | undefined;
+  if (isAiDataConsentActive(consent, provider)) return;
+  throw new AppError({
+    code: 'INVALID_REQUEST',
+    message: 'Review and approve AI data sharing before asking AI Agent.',
+    retryable: false,
+  });
+}
+
+async function loadAiConfig(): Promise<AiSessionConfig | undefined> {
+  const stored = await chrome.storage.session.get(AI_CONFIG_KEY);
+  const config = stored[AI_CONFIG_KEY] as AiSessionConfig | undefined;
+  if (!config) return undefined;
   try {
-    validateAiConfig(remembered.config);
+    validateAiConfig(config);
   } catch {
-    await Promise.all([
-      chrome.storage.local.remove(AI_REMEMBERED_CONFIG_KEY),
-      chrome.storage.session.remove(AI_CONFIG_KEY),
-    ]);
-    return {};
+    await chrome.storage.session.remove([AI_CONFIG_KEY, AI_DATA_CONSENT_KEY]);
+    return undefined;
   }
-  if (!sessionConfig) {
-    await chrome.storage.session.set({ [AI_CONFIG_KEY]: remembered.config });
-  }
-  return {
-    config: sessionConfig ?? remembered.config,
-    rememberedUntil: remembered.expiresAt,
-  };
+  return config;
 }
 
 async function getQueryHistory(key: string): Promise<SoqlHistoryEntry[]> {

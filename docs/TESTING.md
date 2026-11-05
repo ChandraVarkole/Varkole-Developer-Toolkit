@@ -32,7 +32,11 @@
 19. Ask AI questions that require schema, records, permissions, follow-ups, and lists over 20 rows.
     Verify Salesforce access is respected, transmitted context is bounded, responses are formatted,
     and no chat or query result is persisted.
-20. Verify provider keys are session-only by default. For the eight-hour option, verify restoration,
-    exact expiration, Forget key, extension removal, and that content scripts cannot read storage.
+20. Verify provider keys exist only in session storage, are removed by Forget key and extension
+    reload, and cannot be read by content scripts. Upgrade from v0.6.4 and verify any legacy locally
+    remembered key is deleted.
+21. Connect each provider and verify no Salesforce context is sent before the provider-specific
+    disclosure is affirmatively approved. Verify consent is cleared by provider changes, Forget key,
+    extension reload, and disclosure-version changes.
 
 Do read-only production validation only after explicit approval. Never use production writes during Phase 1.

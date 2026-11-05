@@ -125,7 +125,7 @@ export interface AiConnectionStatus {
   provider?: AiProvider;
   model?: string;
   region?: string;
-  rememberedUntil?: string;
+  dataConsentGranted?: boolean;
 }
 
 export interface AiChatMessage {
@@ -165,9 +165,9 @@ export type UiRequest =
         apiKey: string;
         model: string;
         region?: string;
-        rememberForEightHours?: boolean;
       };
     }
+  | { type: 'GRANT_AI_DATA_CONSENT' }
   | { type: 'DISCONNECT_AI' }
   | {
       type: 'ASK_AI';

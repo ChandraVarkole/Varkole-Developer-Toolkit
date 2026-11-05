@@ -50,12 +50,13 @@ Salesforce policy names can vary by release. This setup is unnecessary unless yo
 - Only allowlisted HTTPS Salesforce host suffixes are accepted.
 - UI pages request operations through the service worker and never receive access tokens.
 - AI Agent supports provider-direct BYOK for OpenAI, Anthropic, Gemini, and Bedrock. Provider host
-  access is optional and requested only when connecting. Keys use `chrome.storage.session` by
-  default. The optional eight-hour convenience setting temporarily persists the key in this Chrome
-  profile and must not be used on a shared or untrusted device.
+  access is optional and requested only when connecting. Keys use temporary `chrome.storage.session`
+  storage and are never written to local or sync storage.
 - When the user asks a question, AI Agent automatically retrieves a bounded set of accessible
   Salesforce metadata and records and sends that context directly to the selected provider. Varkole
-  has no hosted service in that path. The agent has no Salesforce write or Apex-execution tools.
+  has no hosted service in that path. Before the first request, the user must affirmatively approve a
+  provider-specific disclosure listing the data categories that may be shared. Consent lasts only for
+  the browser session. The agent has no Salesforce write or Apex-execution tools.
 
 ## Commands
 

@@ -132,7 +132,7 @@ export function WorkspaceApp() {
           <button type="button" onClick={() => navigate('settings')}>
             ⚙ Settings
           </button>
-          <span>Developer Preview · v0.6.4</span>
+          <span>Developer Preview · v0.6.5</span>
         </div>
       </aside>
 

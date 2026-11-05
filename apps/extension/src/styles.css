@@ -2765,32 +2765,59 @@ tbody tr:hover td {
   color: var(--muted);
   font-size: 11px;
 }
-.ai-remember-row {
-  width: fit-content;
+.ai-consent-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  border-color: #bcd8f6;
+  background: linear-gradient(135deg, #ffffff, #f2f8ff);
+}
+.ai-consent-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e2f2ff;
+  color: #1768b4;
+  font-size: 20px;
+  font-weight: 850;
+}
+.ai-consent-content {
+  max-width: 780px;
+}
+.ai-consent-content h2 {
+  margin: 3px 0 8px;
+  font-size: 18px;
+}
+.ai-consent-content p,
+.ai-consent-content li {
+  color: #52617a;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.ai-consent-content ul {
+  display: grid;
+  gap: 3px;
+  margin: 10px 0;
+  padding-left: 20px;
+}
+.ai-consent-check {
   display: flex;
   align-items: flex-start;
   gap: 9px;
-  margin-top: 13px;
+  margin: 15px 0 12px;
   color: #273957;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.45;
   cursor: pointer;
 }
-.ai-remember-row input {
+.ai-consent-check input {
   width: 15px;
   height: 15px;
   flex: 0 0 auto;
   margin: 1px 0 0;
-}
-.ai-remember-row span {
-  display: grid;
-  gap: 2px;
-}
-.ai-remember-row strong {
-  font-size: 11px;
-}
-.ai-remember-row small {
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 1.4;
 }
 .ai-context-options {
   display: grid;

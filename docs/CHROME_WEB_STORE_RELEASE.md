@@ -2,27 +2,28 @@
 
 ## Current recommendation
 
-Version 0.6.4 is suitable for continued local testing and, after the disclosure work below, a
-private or unlisted beta. Do not submit it as a public production release yet.
+Version 0.6.5 is suitable for continued local testing and a private trusted-tester submission after
+the remaining checklist items below are completed. Do not submit it as a public production release
+until the real-org acceptance evidence is recorded.
+
+## Completed in 0.6.5
+
+- Provider keys are session-only; the service worker removes legacy locally remembered keys.
+- AI Agent presents a provider-specific disclosure before Salesforce context is shared.
+- The background rejects AI requests without current, versioned affirmative consent.
+- A privacy-policy draft and reviewer test instructions are included in `docs/`.
 
 ## Public-release blockers
 
-1. Add an affirmative in-product disclosure before Salesforce schema or record values are sent to
-   an AI provider. The disclosure must identify the selected provider, the categories of data sent,
-   the purpose, and that Varkole has no server in the provider-direct path.
-2. Remove the eight-hour `chrome.storage.local` API-key option or replace it with a reviewed,
-   OS-backed secret-storage design. Chrome local storage is not encrypted and is not appropriate for
-   confidential authentication material.
-3. Publish an accurate privacy policy at a stable public HTTPS URL. Add developer identity, support
-   contact, deletion/retention instructions, every third-party AI provider, Salesforce session-cookie
-   use, query-history storage, and the Chrome Web Store Limited Use statement.
-4. Complete and record the manual tests in `docs/TESTING.md`, especially two-org isolation,
+1. Confirm the repository is public and use the HTTPS URL for `docs/PRIVACY_POLICY.md` as the store
+   privacy-policy URL, or publish the same policy on a stable first-party site.
+2. Complete and record the manual tests in `docs/TESTING.md`, especially two-org isolation,
    production guards, OAuth/API Access Control, permission-denied personas, provider failures,
    incognito behavior, and extension update/reload behavior.
-5. Complete Chrome Web Store listing assets and declarations: single purpose, permission
-   justifications, data-use categories, privacy certifications, screenshots, support URL, and
-   reviewer test instructions.
-6. Resolve or accept the development-only `minimatch` advisory reported by `npm audit`; production
+3. Complete Chrome Web Store listing assets and declarations: single purpose, permission
+   justifications, data-use categories, privacy certifications, screenshots, and support URL. The
+   owner will prepare screenshots; reviewer instructions are in `docs/CHROME_WEB_STORE_REVIEWER_NOTES.md`.
+4. Resolve or accept the development-only `minimatch` advisory reported by `npm audit`; production
    dependencies currently report no known vulnerabilities.
 
 ## Suggested rollout

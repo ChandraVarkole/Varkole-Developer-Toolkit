@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.5 — AI consent and session-only secrets
+
+- Removed the eight-hour provider-key option. AI credentials now exist only in trusted-context
+  Chrome session storage and are cleared by browser-session or extension reload boundaries.
+- Added upgrade cleanup that deletes provider keys locally remembered by earlier preview builds.
+- Added a provider-specific disclosure listing the Salesforce and conversation data categories that
+  may be shared, the provider-direct path, and the read-only limitation.
+- Added background enforcement so AI requests are rejected until the disclosure is affirmatively
+  approved for the configured provider and current browser session.
+- Added consent validation tests and public privacy-policy/reviewer-note templates for store review.
+
 ## 0.6.4 — Release-review hardening
 
 - Restricted local and session extension storage to trusted extension contexts so Salesforce pages

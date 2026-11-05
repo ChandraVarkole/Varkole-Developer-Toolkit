@@ -60,7 +60,8 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState(PROVIDERS[0]!.model);
   const [region, setRegion] = useState('us-east-1');
-  const [rememberForEightHours, setRememberForEightHours] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [grantingConsent, setGrantingConsent] = useState(false);
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
   const [prompt, setPrompt] = useState('');
   const [connecting, setConnecting] = useState(false);
@@ -78,7 +79,6 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
         if (next.provider) setProvider(next.provider);
         if (next.model) setModel(next.model);
         if (next.region) setRegion(next.region);
-        setRememberForEightHours(Boolean(next.rememberedUntil));
       })
       .catch((cause: unknown) => {
         setShowConnection(true);
@@ -106,7 +106,7 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
     setProvider(next);
     setModel(PROVIDERS.find((candidate) => candidate.id === next)?.model ?? '');
     setApiKey('');
-    setRememberForEightHours(false);
+    setConsentChecked(false);
     setError(undefined);
   }
 
@@ -123,12 +123,13 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
           provider,
           apiKey,
           model,
-          rememberForEightHours,
           ...(provider === 'bedrock' ? { region } : {}),
         },
       });
       setStatus(next);
       setApiKey('');
+      setConsentChecked(false);
+      setMessages([]);
       setShowConnection(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'The AI provider could not connect.');
@@ -142,16 +143,30 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
     try {
       setStatus(await sendMessage<AiConnectionStatus>({ type: 'DISCONNECT_AI' }));
       setMessages([]);
-      setRememberForEightHours(false);
+      setConsentChecked(false);
       setShowConnection(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'The AI provider could not disconnect.');
     }
   }
 
+  async function grantDataConsent() {
+    if (!consentChecked || grantingConsent) return;
+    setGrantingConsent(true);
+    setError(undefined);
+    try {
+      setStatus(await sendMessage<AiConnectionStatus>({ type: 'GRANT_AI_DATA_CONSENT' }));
+      setConsentChecked(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'AI data sharing could not be approved.');
+    } finally {
+      setGrantingConsent(false);
+    }
+  }
+
   async function askAgent() {
     const question = prompt.trim();
-    if (!question || !org || !status.configured || asking) return;
+    if (!question || !org || !status.configured || !status.dataConsentGranted || asking) return;
     const userMessage: AiChatMessage = { role: 'user', content: question };
     const conversation = [...messages, userMessage].slice(-9);
     const planningTranscript = conversation
@@ -280,15 +295,7 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
             <span>Connected</span>
             <strong>{PROVIDERS.find((item) => item.id === status.provider)?.label}</strong>
             <code>{status.model}</code>
-            {status.rememberedUntil && (
-              <small>
-                Key available until{' '}
-                {new Date(status.rememberedUntil).toLocaleTimeString([], {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                })}
-              </small>
-            )}
+            <small>Key kept only for this browser session</small>
             <button type="button" onClick={() => setShowConnection((current) => !current)}>
               {showConnection ? 'Hide settings' : 'Change'}
             </button>
@@ -303,10 +310,7 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
           <div className="section-title">
             <div>
               <h2>{status.configured ? 'Provider settings' : 'Connect your model'}</h2>
-              <p>
-                Keep the key for this browser session, or remember it locally for eight hours on a
-                trusted device.
-              </p>
+              <p>The key is kept only in temporary browser-session storage.</p>
             </div>
             {status.configured && (
               <button
@@ -371,19 +375,6 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
               {connecting ? 'Testing…' : status.configured ? 'Save changes' : 'Save & test'}
             </button>
           </div>
-          <label className="ai-remember-row">
-            <input
-              type="checkbox"
-              checked={rememberForEightHours}
-              onChange={(event) => setRememberForEightHours(event.target.checked)}
-            />
-            <span>
-              <strong>Remember key for 8 hours</strong>
-              <small>
-                Stored only in this Chrome profile and removed automatically after eight hours.
-              </small>
-            </span>
-          </label>
           <p className="ai-provider-hint">{providerInfo.hint}</p>
         </section>
       )}
@@ -393,6 +384,55 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
           title="Open a Salesforce org"
           description="AI Agent answers from the current Salesforce browser session."
         />
+      ) : status.configured && !status.dataConsentGranted ? (
+        <section className="section-card ai-consent-card" aria-labelledby="ai-consent-title">
+          <div className="ai-consent-icon" aria-hidden="true">
+            ✓
+          </div>
+          <div className="ai-consent-content">
+            <div className="eyebrow">Approval required</div>
+            <h2 id="ai-consent-title">Approve AI data sharing for this browser session</h2>
+            <p>
+              When you ask a question, Varkole sends it directly to{' '}
+              <strong>
+                {PROVIDERS.find((item) => item.id === status.provider)?.label ??
+                  'your selected provider'}
+              </strong>{' '}
+              together with only the accessible Salesforce context needed to answer it.
+            </p>
+            <ul>
+              <li>Org and current-user identity</li>
+              <li>Relevant object and field metadata</li>
+              <li>Relevant query results and record values</li>
+              <li>Recent messages needed to understand follow-up questions</li>
+            </ul>
+            <p>
+              Data goes from this extension to the selected provider—no Varkole server is in the
+              path. The provider handles it under its own terms and privacy policy. AI Agent remains
+              read-only and cannot write Salesforce records or run Apex.
+            </p>
+            <label className="ai-consent-check">
+              <input
+                type="checkbox"
+                checked={consentChecked}
+                onChange={(event) => setConsentChecked(event.target.checked)}
+              />
+              <span>
+                I understand and approve this data sharing with the selected provider for this
+                browser session.
+              </span>
+            </label>
+            <button
+              className="button button-primary"
+              type="button"
+              disabled={!consentChecked || grantingConsent}
+              onClick={() => void grantDataConsent()}
+            >
+              {grantingConsent ? 'Approving…' : 'Approve and continue'}
+            </button>
+            {error && <InlineError message={error} />}
+          </div>
+        </section>
       ) : (
         <section className="section-card ai-chat-card ai-chat-primary">
           <div className="section-title">
@@ -480,7 +520,9 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
             <button
               className="button button-primary"
               type="button"
-              disabled={!status.configured || !prompt.trim() || asking}
+              disabled={
+                !status.configured || !status.dataConsentGranted || !prompt.trim() || asking
+              }
               onClick={() => void askAgent()}
             >
               {asking ? 'Working…' : 'Ask AI Agent'}
