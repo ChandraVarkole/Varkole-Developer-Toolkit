@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.6 — Private beta package
+
+- Added the required **BETA** suffix to the extension name and toolbar title.
+- Added the explicit **THIS EXTENSION IS FOR BETA TESTING** statement to the manifest description.
+- Updated the in-product version label for the private trusted-tester submission.
+
 ## 0.6.5 — AI consent and session-only secrets
 
 - Removed the eight-hour provider-key option. AI credentials now exist only in trusted-context

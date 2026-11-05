@@ -1,5 +1,8 @@
 # Varkole Developer Toolkit
 
+The current packaged release is a private beta build. Its Chrome manifest is labeled **BETA** and
+states **THIS EXTENSION IS FOR BETA TESTING** for trusted-tester distribution.
+
 Phase 0 plus the first Phase 1 vertical slice of a Salesforce developer-toolkit Chrome extension. The extension automatically uses the authenticated user session from the active Salesforce tab, matching the Salesforce Inspector interaction model. OAuth 2.0 Authorization Code + PKCE is an optional fallback for orgs with API Access Control.
 
 ## Prerequisites

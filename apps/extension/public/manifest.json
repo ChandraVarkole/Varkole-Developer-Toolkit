@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Varkole Developer Toolkit",
-  "short_name": "Varkole",
-  "version": "0.6.5",
-  "description": "Salesforce developer utilities using your current signed-in browser session.",
+  "name": "Varkole Developer Toolkit BETA",
+  "short_name": "Varkole BETA",
+  "version": "0.6.6",
+  "description": "THIS EXTENSION IS FOR BETA TESTING. Salesforce developer utilities using your current signed-in browser session.",
   "minimum_chrome_version": "114",
   "action": {
-    "default_title": "Toggle Varkole Developer Toolkit",
+    "default_title": "Toggle Varkole Developer Toolkit BETA",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",
