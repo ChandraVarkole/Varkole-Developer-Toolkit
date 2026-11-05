@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.DS_Store
+.env
+.env.local
+*.log
+*.tsbuildinfo
+playwright-report/
+test-results/
+apps/extension/*.zip
+apps/extension/varkole-cloud-code-guru-phase-1/
+apps/extension/varkole-developer-toolkit-v*/

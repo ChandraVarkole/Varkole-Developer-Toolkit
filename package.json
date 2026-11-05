@@ -1,0 +1,42 @@
+{
+  "name": "varkole-cloud-code-guru",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Salesforce developer utilities in a secure Chrome extension",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @varkole/extension",
+    "dev": "npm run dev -w @varkole/extension",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint apps packages --max-warnings=0",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "verify": "npm run format && npm run lint && npm run typecheck && npm run test && npm run build"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.1",
+    "@types/chrome": "0.1.31",
+    "@types/node": "24.10.0",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@vitejs/plugin-react": "5.1.1",
+    "eslint": "9.39.1",
+    "eslint-plugin-react-hooks": "7.0.1",
+    "eslint-plugin-react-refresh": "0.4.24",
+    "globals": "16.5.0",
+    "prettier": "3.6.2",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.46.4",
+    "vite": "7.3.7",
+    "vitest": "4.1.12"
+  }
+}

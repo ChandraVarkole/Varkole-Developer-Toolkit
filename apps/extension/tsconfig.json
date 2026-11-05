@@ -1,0 +1,15 @@
+{
+  "extends": "../../packages/shared/tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": ["chrome", "vite/client"],
+    "noEmit": true,
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.tsbuildinfo"
+  },
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/salesforce-client" }
+  ],
+  "include": ["src", "vite.config.ts"]
+}

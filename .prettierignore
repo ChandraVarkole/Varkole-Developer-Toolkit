@@ -1,0 +1,6 @@
+dist
+node_modules
+package-lock.json
+coverage
+apps/extension/varkole-cloud-code-guru-phase-1
+apps/extension/varkole-developer-toolkit-v*
