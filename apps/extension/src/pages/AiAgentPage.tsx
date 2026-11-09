@@ -52,6 +52,13 @@ const PROVIDERS: {
   },
 ];
 
+const transientChatByOrg = new Map<string, AiChatMessage[]>();
+const orgFoundationCache = new Map<
+  string,
+  Promise<{ objects: SalesforceObjectSummary[]; orgInfo?: OrgInfo | undefined }>
+>();
+const describeCache = new Map<string, Promise<SalesforceObjectDescribe>>();
+
 export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
   const [status, setStatus] = useState<AiConnectionStatus>({ configured: false });
   const [statusLoaded, setStatusLoaded] = useState(false);
@@ -62,7 +69,9 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
   const [region, setRegion] = useState('us-east-1');
   const [consentChecked, setConsentChecked] = useState(false);
   const [grantingConsent, setGrantingConsent] = useState(false);
-  const [messages, setMessages] = useState<AiChatMessage[]>([]);
+  const [messages, setMessages] = useState<AiChatMessage[]>(() =>
+    org ? (transientChatByOrg.get(org.key) ?? []) : [],
+  );
   const [prompt, setPrompt] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -95,6 +104,10 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
     });
     return () => window.cancelAnimationFrame(frame);
   }, [messages, asking]);
+
+  useEffect(() => {
+    if (org) transientChatByOrg.set(org.key, messages);
+  }, [messages, org]);
 
   const providerInfo = useMemo(
     () => PROVIDERS.find((candidate) => candidate.id === provider) ?? PROVIDERS[0]!,
@@ -168,26 +181,18 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
     const question = prompt.trim();
     if (!question || !org || !status.configured || !status.dataConsentGranted || asking) return;
     const userMessage: AiChatMessage = { role: 'user', content: question };
-    const conversation = [...messages, userMessage].slice(-9);
+    const conversation = [...messages, userMessage].slice(-19);
     const planningTranscript = conversation
       .map((message) => `${message.role === 'user' ? 'User' : 'AI Agent'}: ${message.content}`)
       .join('\n')
-      .slice(-7_000);
+      .slice(-20_000);
     setMessages(conversation);
     setPrompt('');
     setAsking(true);
     setError(undefined);
     try {
       setProgress('Reading your accessible org metadata…');
-      const [objects, orgInfo] = await Promise.all([
-        sendMessage<SalesforceObjectSummary[]>({
-          type: 'GET_OBJECTS',
-          payload: { key: org.key },
-        }),
-        sendMessage<OrgInfo>({ type: 'GET_ORG_INFO', payload: { key: org.key } }).catch(
-          () => undefined,
-        ),
-      ]);
+      const { objects, orgInfo } = await loadOrgFoundation(org);
 
       setProgress('Planning safe read-only lookups…');
       const planResponse = await sendMessage<string>({
@@ -200,7 +205,7 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
             },
           ],
           salesforceContext: buildAiPlanningContext(org, objects, planningTranscript),
-          maxOutputTokens: 500,
+          maxOutputTokens: 700,
         },
       });
       const plan = parseAiReadPlan(planResponse, objects);
@@ -209,10 +214,7 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
       const describes = (
         await Promise.all(
           plan.objects.map((objectApiName) =>
-            sendMessage<SalesforceObjectDescribe>({
-              type: 'DESCRIBE_OBJECT',
-              payload: { key: org.key, objectApiName },
-            }).catch(() => undefined),
+            loadObjectDescribe(org, objectApiName).catch(() => undefined),
           ),
         )
       ).filter((describe): describe is SalesforceObjectDescribe => Boolean(describe));
@@ -221,7 +223,7 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
       )
         ? currentUserAccessQueries(org.userId)
         : [];
-      const queries = [...new Set([...accessQueries, ...plan.queries])].slice(0, 5);
+      const queries = [...new Set([...accessQueries, ...plan.queries])].slice(0, 8);
       const observations: AiQueryObservation[] = await Promise.all(
         queries.map(async (query) => {
           try {
@@ -260,11 +262,11 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
             observations,
             focus: planningTranscript,
           }),
-          maxOutputTokens: 2_000,
+          maxOutputTokens: 4_000,
         },
       });
       const assistantMessage: AiChatMessage = { role: 'assistant', content: answer };
-      setMessages([...conversation, assistantMessage].slice(-10));
+      setMessages([...conversation, assistantMessage].slice(-20));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'AI Agent could not answer.');
     } finally {
@@ -539,6 +541,47 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
       )}
     </div>
   );
+}
+
+async function loadOrgFoundation(
+  org: OrgIdentity,
+): Promise<{ objects: SalesforceObjectSummary[]; orgInfo?: OrgInfo | undefined }> {
+  const cached = orgFoundationCache.get(org.key);
+  if (cached) return cached;
+  const request = Promise.all([
+    sendMessage<SalesforceObjectSummary[]>({
+      type: 'GET_OBJECTS',
+      payload: { key: org.key },
+    }),
+    sendMessage<OrgInfo>({ type: 'GET_ORG_INFO', payload: { key: org.key } }).catch(
+      () => undefined,
+    ),
+  ])
+    .then(([objects, orgInfo]) => ({ objects, orgInfo }))
+    .catch((cause: unknown) => {
+      orgFoundationCache.delete(org.key);
+      throw cause;
+    });
+  orgFoundationCache.set(org.key, request);
+  return request;
+}
+
+async function loadObjectDescribe(
+  org: OrgIdentity,
+  objectApiName: string,
+): Promise<SalesforceObjectDescribe> {
+  const key = `${org.key}:${objectApiName}`;
+  const cached = describeCache.get(key);
+  if (cached) return cached;
+  const request = sendMessage<SalesforceObjectDescribe>({
+    type: 'DESCRIBE_OBJECT',
+    payload: { key: org.key, objectApiName },
+  }).catch((cause: unknown) => {
+    describeCache.delete(key);
+    throw cause;
+  });
+  describeCache.set(key, request);
+  return request;
 }
 
 function currentUserAccessQueries(userId: string): string[] {

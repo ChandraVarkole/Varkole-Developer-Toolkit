@@ -132,7 +132,7 @@ export function WorkspaceApp() {
           <button type="button" onClick={() => navigate('settings')}>
             ⚙ Settings
           </button>
-          <span>Private Beta · v0.6.6</span>
+          <span>Private Beta · v0.7.0</span>
         </div>
       </aside>
 
@@ -148,7 +148,7 @@ export function WorkspaceApp() {
                 title={`Inspect Salesforce record ${currentRecordId}`}
               >
                 <span>▤</span>
-                Inspect current record
+                <span className="current-record-label">Inspect current record</span>
               </button>
             )}
             {selectedOrg && !selectedOrg.connected && (

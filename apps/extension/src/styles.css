@@ -239,14 +239,18 @@ code,
   position: sticky;
   z-index: 5;
   top: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 20px;
   padding: 11px 30px;
   border-bottom: 1px solid var(--line);
   background: rgb(255 255 255 / 94%);
   backdrop-filter: blur(14px);
+}
+.org-selector-wrap,
+.org-selector-row {
+  min-width: 0;
 }
 .org-selector-wrap label {
   display: block;
@@ -275,6 +279,7 @@ code,
 }
 .topbar-actions {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 9px;
 }
@@ -570,6 +575,21 @@ code,
   position: sticky;
   min-height: 58px;
   padding: 7px 14px;
+  gap: 8px;
+}
+.embedded .org-selector-wrap,
+.embedded .org-selector-row {
+  width: 100%;
+}
+.embedded .org-selector-row select {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.embedded .topbar-actions {
+  gap: 5px;
 }
 .embedded .workspace-content {
   padding: 14px 14px 28px;
@@ -1125,6 +1145,11 @@ code,
   align-items: center;
   gap: 10px;
 }
+.record-inspector-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .record-capabilities,
 .schema-capabilities {
   display: flex;
@@ -1162,24 +1187,27 @@ code,
   border: 1px solid #ccd8e8;
   border-radius: 8px;
 }
-.record-field-grid {
+.record-field-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 10px;
+  gap: 0;
   padding: 14px 20px 20px;
 }
 .record-field {
   min-width: 0;
-  padding: 12px;
-  border: 1px solid #e0e7f0;
-  border-radius: 9px;
-  background: #fbfcfe;
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  align-items: start;
+  gap: 6px 16px;
+  padding: 11px 4px;
+  border-bottom: 1px solid #e7edf4;
 }
-.record-field > div:first-child {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+.record-field:last-child {
+  border-bottom: 0;
+}
+.record-field-name {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
 }
 .record-field strong {
   overflow: hidden;
@@ -1191,10 +1219,10 @@ code,
   font-size: 9px;
 }
 .record-field p {
-  min-height: 18px;
-  max-height: 110px;
+  min-height: 17px;
+  max-height: 160px;
   overflow: auto;
-  margin: 10px 0;
+  margin: 0;
   color: #172744;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
@@ -1206,6 +1234,7 @@ code,
   font-style: italic;
 }
 .field-meta {
+  grid-column: 2;
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
@@ -2527,6 +2556,17 @@ tbody tr:hover td {
     align-items: start;
     flex-direction: column;
   }
+  .record-inspector-header-actions {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .record-field {
+    grid-template-columns: 1fr;
+  }
+  .field-meta {
+    grid-column: 1;
+  }
   .soql-header-actions {
     width: 100%;
     align-items: stretch;
@@ -2648,6 +2688,51 @@ tbody tr:hover td {
     Consolas,
     monospace;
   white-space: pre-wrap;
+}
+.apex-log-card {
+  min-width: 0;
+}
+.apex-log-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.apex-log-meta span {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #edf4fb;
+  color: #45617f;
+  font-size: 9px;
+  font-weight: 750;
+}
+.apex-log-search {
+  width: min(520px, 100%);
+  margin-bottom: 10px;
+  padding: 9px 11px;
+  border: 1px solid #ccd8e8;
+  border-radius: 8px;
+}
+.apex-log-body {
+  max-height: 520px;
+  overflow: auto;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #1c315a;
+  border-radius: 9px;
+  background: #0b1b3b;
+  color: #dce9ff;
+  font:
+    10px/1.6 'SFMono-Regular',
+    Consolas,
+    monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.apex-log-body mark {
+  border-radius: 2px;
+  background: #ffe66e;
+  color: #17223a;
 }
 .csv-editor {
   width: 100%;
@@ -3142,6 +3227,26 @@ tbody tr:hover td {
   }
 }
 
+@media (max-width: 900px) {
+  .embedded .org-selector-row > .badge {
+    display: none;
+  }
+  .embedded .current-record-button {
+    width: 34px;
+    min-width: 34px;
+    justify-content: center;
+    padding: 0;
+  }
+  .embedded .current-record-label {
+    display: none;
+  }
+  .embedded .icon-button,
+  .embedded .avatar-button {
+    width: 32px;
+    height: 32px;
+  }
+}
+
 @media (max-width: 700px) {
   .workspace-shell.embedded {
     grid-template-columns: 68px minmax(0, 1fr);
@@ -3161,8 +3266,7 @@ tbody tr:hover td {
     place-items: center;
   }
   .embedded .topbar {
-    align-items: stretch;
-    flex-direction: column;
+    align-items: center;
   }
   .embedded .topbar-actions {
     justify-content: flex-end;

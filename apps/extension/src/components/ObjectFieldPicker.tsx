@@ -5,6 +5,11 @@ import type {
   SalesforceObjectSummary,
 } from '@varkole/shared';
 import { sendMessage } from '../api';
+import {
+  matchingObjectSuggestions,
+  objectDisplayLabel,
+  sortSalesforceObjects,
+} from './object-suggestions';
 
 export function ObjectFieldPicker({
   org,
@@ -36,8 +41,9 @@ export function ObjectFieldPicker({
     void sendMessage<SalesforceObjectSummary[]>({ type: 'GET_OBJECTS', payload: { key: org.key } })
       .then((next) => {
         if (active) {
-          setObjects(next);
-          onObjectsLoaded?.(next);
+          const sorted = sortSalesforceObjects(next);
+          setObjects(sorted);
+          onObjectsLoaded?.(sorted);
         }
       })
       .catch((cause: unknown) => {
@@ -89,17 +95,28 @@ export function ObjectFieldPicker({
   const selectedObject = objects.find(
     (object) => object.name.toLowerCase() === objectApiName.trim().toLowerCase(),
   );
-  const objectInput = objectDraft ?? selectedObject?.label ?? objectApiName;
+  const objectInput =
+    objectDraft ?? (selectedObject ? objectDisplayLabel(selectedObject) : objectApiName);
+  const objectSuggestions = useMemo(
+    () => matchingObjectSuggestions(objects, objectDraft ?? ''),
+    [objectDraft, objects],
+  );
 
   const visibleFields = useMemo(() => {
     const needle = fieldFilter.trim().toLowerCase();
-    return (activeDescribe?.fields ?? [])
+    return [...(activeDescribe?.fields ?? [])]
       .filter(
         (field) =>
           !needle ||
           field.name.toLowerCase().includes(needle) ||
           field.label.toLowerCase().includes(needle) ||
           field.type.toLowerCase().includes(needle),
+      )
+      .sort((left, right) =>
+        (left.label || left.name).localeCompare(right.label || right.name, undefined, {
+          sensitivity: 'base',
+          numeric: true,
+        }),
       )
       .slice(0, 100);
   }, [activeDescribe, fieldFilter]);
@@ -128,7 +145,7 @@ export function ObjectFieldPicker({
               const value = event.target.value;
               const exact = objects.find(
                 (object) =>
-                  object.label.toLowerCase() === value.trim().toLowerCase() ||
+                  objectDisplayLabel(object).toLowerCase() === value.trim().toLowerCase() ||
                   object.name.toLowerCase() === value.trim().toLowerCase(),
               );
               if (exact) {
@@ -143,10 +160,15 @@ export function ObjectFieldPicker({
             autoComplete="off"
           />
           <datalist id={`objects-${org.orgId}`}>
-            {objects.map((object) => (
-              <option key={object.name} value={object.label} />
+            {objectSuggestions.map((object) => (
+              <option key={object.name} value={objectDisplayLabel(object)}>
+                {object.name}
+              </option>
             ))}
           </datalist>
+          {objectDraft !== undefined && objectDraft.trim().length < 2 && (
+            <small className="input-hint">Type at least 2 characters</small>
+          )}
         </label>
         <label>
           <span>Fields</span>

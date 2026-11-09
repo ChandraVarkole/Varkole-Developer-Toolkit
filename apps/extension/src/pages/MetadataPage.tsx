@@ -6,6 +6,7 @@ import type {
   SalesforceObjectSummary,
 } from '@varkole/shared';
 import { sendMessage } from '../api';
+import { objectDisplayLabel, sortSalesforceObjects } from '../components/object-suggestions';
 import { QueryResults } from '../components/QueryResults';
 import { EmptyState, InlineError } from '../components/Status';
 import { useAutoLoad } from '../useAutoLoad';
@@ -29,8 +30,10 @@ export function MetadataPage({ org }: { org?: OrgIdentity | undefined }) {
         type: 'GET_OBJECTS',
         payload: { key: org.key },
       });
-      setObjects(next);
-      if (selectedName && !next.some((object) => object.name === selectedName)) setSelectedName('');
+      const sorted = sortSalesforceObjects(next);
+      setObjects(sorted);
+      if (selectedName && !sorted.some((object) => object.name === selectedName))
+        setSelectedName('');
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : 'Salesforce could not load object metadata.',
@@ -74,15 +77,28 @@ export function MetadataPage({ org }: { org?: OrgIdentity | undefined }) {
 
   const visibleObjects = useMemo(() => {
     const needle = objectFilter.trim().toLowerCase();
-    return objects.filter(
-      (object) =>
+    return objects.filter((object) => {
+      const label = objectDisplayLabel(object);
+      return (
         !needle ||
         object.name.toLowerCase().includes(needle) ||
-        object.label.toLowerCase().includes(needle),
-    );
+        label.toLowerCase().includes(needle)
+      );
+    });
   }, [objectFilter, objects]);
   const selectedObject = objects.find((object) => object.name === selectedName);
-  const fieldRecords = useMemo(() => describe?.fields.map(fieldMetadataRecord) ?? [], [describe]);
+  const fieldRecords = useMemo(
+    () =>
+      [...(describe?.fields ?? [])]
+        .sort((left, right) =>
+          (left.label || left.name).localeCompare(right.label || right.name, undefined, {
+            sensitivity: 'base',
+            numeric: true,
+          }),
+        )
+        .map(fieldMetadataRecord),
+    [describe],
+  );
 
   if (!org) {
     return (
@@ -130,7 +146,7 @@ export function MetadataPage({ org }: { org?: OrgIdentity | undefined }) {
                 className={object.name === selectedName ? 'active' : ''}
                 onClick={() => setSelectedName(object.name)}
               >
-                <strong>{object.label}</strong>
+                <strong>{objectDisplayLabel(object)}</strong>
                 <small>{object.custom ? 'Custom' : 'Standard'}</small>
               </button>
             ))}
@@ -147,7 +163,7 @@ export function MetadataPage({ org }: { org?: OrgIdentity | undefined }) {
                 <span className="badge badge-outline">
                   {selectedObject.custom ? 'Custom object' : 'Standard object'}
                 </span>
-                <h2>{selectedObject.label}</h2>
+                <h2>{objectDisplayLabel(selectedObject)}</h2>
               </div>
               <div className="schema-capabilities">
                 <SchemaCapability label="Queryable" enabled={selectedObject.queryable} />

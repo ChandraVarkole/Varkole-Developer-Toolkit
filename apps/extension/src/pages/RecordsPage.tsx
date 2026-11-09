@@ -9,10 +9,12 @@ import type {
 } from '@varkole/shared';
 import { sendMessage } from '../api';
 import { ObjectFieldPicker } from '../components/ObjectFieldPicker';
+import { sortSalesforceObjects } from '../components/object-suggestions';
 import { QueryResults } from '../components/QueryResults';
 import { EmptyState, InlineError } from '../components/Status';
 import { useAutoLoad } from '../useAutoLoad';
 import { buildRecordsQuery, inferObjectFromRecordId } from './records-query';
+import { buildRecordFieldRows } from './record-fields';
 
 export function RecordsPage({
   org,
@@ -31,6 +33,7 @@ export function RecordsPage({
   const [loading, setLoading] = useState(false);
   const [requestId, setRequestId] = useState<string>();
   const [pageNumber, setPageNumber] = useState(1);
+  const [loadingContext, setLoadingContext] = useState(Boolean(initialRecordId));
   const inferredObject = useMemo(
     () => inferObjectFromRecordId(recordId, objects),
     [objects, recordId],
@@ -44,6 +47,60 @@ export function RecordsPage({
       setResult(undefined);
     }
   }, [inferredObject, objectApiName]);
+
+  useEffect(() => {
+    if (initialRecordId && objects.length > 0 && !inferredObject) {
+      setError(
+        'Salesforce did not return an accessible object for this record ID. The current user may not have object access.',
+      );
+    }
+  }, [inferredObject, initialRecordId, objects.length]);
+
+  useEffect(() => {
+    if (!org || !initialRecordId) return;
+    let active = true;
+    setLoadingContext(true);
+    void sendMessage<SalesforceObjectSummary[]>({
+      type: 'GET_OBJECTS',
+      payload: { key: org.key },
+    })
+      .then((next) => {
+        if (active) setObjects(sortSalesforceObjects(next));
+      })
+      .catch((cause: unknown) => {
+        if (active)
+          setError(
+            cause instanceof Error ? cause.message : 'Salesforce could not identify the record.',
+          );
+      })
+      .finally(() => {
+        if (active) setLoadingContext(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [initialRecordId, org]);
+
+  useEffect(() => {
+    if (!org || !initialRecordId || !objectApiName) return;
+    let active = true;
+    void sendMessage<SalesforceObjectDescribe>({
+      type: 'DESCRIBE_OBJECT',
+      payload: { key: org.key, objectApiName },
+    })
+      .then((next) => {
+        if (active) setDescribe(next);
+      })
+      .catch((cause: unknown) => {
+        if (active)
+          setError(
+            cause instanceof Error ? cause.message : 'Salesforce could not load field metadata.',
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [initialRecordId, objectApiName, org]);
 
   async function run() {
     if (!org) return;
@@ -135,72 +192,89 @@ export function RecordsPage({
           {!initialRecordId && <p>Choose an object or paste a record ID.</p>}
         </div>
         {initialRecordId && (
-          <div className="current-record-detected">
-            <span>Detected from current page</span>
-            <code>{initialRecordId}</code>
+          <div className="record-inspector-header-actions">
+            <div className="current-record-detected">
+              <span>Current record</span>
+              <code>{initialRecordId}</code>
+            </div>
+            <button
+              className="button button-primary"
+              type="button"
+              disabled={loading || !objectApiName}
+              onClick={() => void run()}
+            >
+              {loading ? 'Refreshing…' : 'Refresh inspection'}
+            </button>
           </div>
         )}
       </header>
 
-      <section className="section-card">
-        <ObjectFieldPicker
-          org={org}
-          objectApiName={objectApiName}
-          onObjectApiNameChange={setObjectApiName}
-          selectedFields={fields
-            .split(',')
-            .map((field) => field.trim())
-            .filter(Boolean)}
-          onSelectedFieldsChange={(next) => setFields(next.join(', '))}
-          onObjectsLoaded={setObjects}
-          onDescribeLoaded={setDescribe}
-        />
-        <div className="form-grid records-form-grid">
-          <label>
-            <span>Record ID (optional)</span>
-            <input
-              value={recordId}
-              onChange={(event) => {
-                setRecordId(event.target.value);
-                setResult(undefined);
-              }}
-              placeholder="15 or 18-character ID"
-            />
-            {inferredObject && (
-              <small className="input-hint">Detected {inferredObject.label}</small>
+      {!initialRecordId && (
+        <section className="section-card">
+          <ObjectFieldPicker
+            org={org}
+            objectApiName={objectApiName}
+            onObjectApiNameChange={setObjectApiName}
+            selectedFields={fields
+              .split(',')
+              .map((field) => field.trim())
+              .filter(Boolean)}
+            onSelectedFieldsChange={(next) => setFields(next.join(', '))}
+            onObjectsLoaded={setObjects}
+            onDescribeLoaded={setDescribe}
+          />
+          <div className="form-grid records-form-grid">
+            <label>
+              <span>Record ID (optional)</span>
+              <input
+                value={recordId}
+                onChange={(event) => {
+                  setRecordId(event.target.value);
+                  setResult(undefined);
+                }}
+                placeholder="15 or 18-character ID"
+              />
+              {inferredObject && (
+                <small className="input-hint">Detected {inferredObject.label}</small>
+              )}
+            </label>
+          </div>
+          <div className="section-actions">
+            <span />
+            {loading ? (
+              <button
+                className="button button-danger-outline"
+                type="button"
+                onClick={() => void cancel()}
+              >
+                Stop
+              </button>
+            ) : (
+              <button
+                className="button button-primary"
+                type="button"
+                disabled={!objectApiName || (!recordMode && !fields.trim())}
+                onClick={() => void run()}
+              >
+                {recordMode
+                  ? result
+                    ? 'Refresh inspection'
+                    : 'Inspect record'
+                  : result
+                    ? 'Refresh records'
+                    : 'Load records'}
+              </button>
             )}
-          </label>
-        </div>
-        <div className="section-actions">
-          <span />
-          {loading ? (
-            <button
-              className="button button-danger-outline"
-              type="button"
-              onClick={() => void cancel()}
-            >
-              Stop
-            </button>
-          ) : (
-            <button
-              className="button button-primary"
-              type="button"
-              disabled={!objectApiName || (!recordMode && !fields.trim())}
-              onClick={() => void run()}
-            >
-              {recordMode
-                ? result
-                  ? 'Refresh inspection'
-                  : 'Inspect record'
-                : result
-                  ? 'Refresh records'
-                  : 'Load records'}
-            </button>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
       <InlineError message={error} />
+      {initialRecordId && loadingContext && !result && (
+        <section className="section-card">
+          <p className="muted">Identifying the current record and loading accessible fields…</p>
+        </section>
+      )}
       {result && recordMode && result.records[0] ? (
         <RecordDetail
           record={result.records[0]}
@@ -234,19 +308,7 @@ function RecordDetail({
   instanceUrl: string;
 }) {
   const [filter, setFilter] = useState('');
-  const metadata = new Map(describe?.fields.map((field) => [field.name, field]) ?? []);
-  const fields = Object.entries(record)
-    .filter(([name]) => name !== 'attributes')
-    .map(([name, value]) => ({ name, value, field: metadata.get(name) }))
-    .filter(({ name, field }) => {
-      const needle = filter.trim().toLowerCase();
-      return (
-        !needle ||
-        name.toLowerCase().includes(needle) ||
-        field?.label.toLowerCase().includes(needle) ||
-        field?.type.toLowerCase().includes(needle)
-      );
-    });
+  const fields = buildRecordFieldRows(record, describe?.fields, filter);
   const id = typeof record.Id === 'string' ? record.Id : undefined;
 
   return (
@@ -270,22 +332,15 @@ function RecordDetail({
           )}
         </div>
       </div>
-      <div className="record-capabilities" aria-label="Object capabilities">
-        <Capability label="Queryable" enabled={object?.queryable} />
-        <Capability label="Searchable" enabled={object?.searchable} />
-        <Capability label="Create" enabled={object?.createable} />
-        <Capability label="Update" enabled={object?.updateable} />
-        <Capability label="Delete" enabled={object?.deletable} />
-      </div>
       <label className="record-field-filter">
         <span className="sr-only">Filter inspected fields</span>
         <input
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
-          placeholder="Filter fields…"
+          placeholder="Search field label, API name, type, or value…"
         />
       </label>
-      <div className="record-field-grid">
+      <div className="record-field-list">
         {fields.map(({ name, value, field }) => (
           <RecordField key={name} name={name} value={value} field={field} />
         ))}
@@ -307,26 +362,29 @@ function RecordField({
   const formatted = formatRecordValue(value);
   return (
     <article className="record-field">
-      <div>
+      <div className="record-field-name">
         <strong>{field?.label ?? name}</strong>
+        <code>{name}</code>
       </div>
       <p className={formatted ? '' : 'null'}>{formatted || 'null'}</p>
       <div className="field-meta">
         <span>{field?.type ?? typeof value}</span>
+        {typeof field?.length === 'number' && field.length > 0 && (
+          <span>Length {field.length}</span>
+        )}
+        {typeof field?.precision === 'number' && field.precision > 0 && (
+          <span>
+            Precision {field.precision}
+            {typeof field.scale === 'number' ? ` · Scale ${field.scale}` : ''}
+          </span>
+        )}
         {field?.calculated && <span>Formula</span>}
         {field && !field.updateable && <span>Read only</span>}
         {field && !field.nillable && <span>Required</span>}
+        {field?.custom && <span>Custom</span>}
         {field?.referenceTo?.length ? <span>→ {field.referenceTo.join(', ')}</span> : null}
       </div>
     </article>
-  );
-}
-
-function Capability({ label, enabled }: { label: string; enabled?: boolean | undefined }) {
-  return (
-    <span className={enabled ? 'enabled' : ''}>
-      {enabled ? '✓' : '—'} {label}
-    </span>
   );
 }
 

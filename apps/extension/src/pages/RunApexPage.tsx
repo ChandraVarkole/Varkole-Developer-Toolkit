@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import type { ExecuteAnonymousResult, OrgIdentity } from '@varkole/shared';
+import type { ExecuteAnonymousResult, OrgIdentity, QueryPage, QueryRecord } from '@varkole/shared';
 import { sendMessage } from '../api';
 import { EmptyState, InlineError } from '../components/Status';
+import { buildExecutionLogQuery } from './apex-log';
 
 const DEFAULT_APEX = "System.debug('Varkole Developer Toolkit');";
 
@@ -12,6 +13,11 @@ export function RunApexPage({ org }: { org?: OrgIdentity | undefined }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [result, setResult] = useState<ExecuteAnonymousResult>();
+  const [executionLog, setExecutionLog] = useState<QueryRecord>();
+  const [logBody, setLogBody] = useState('');
+  const [logLoading, setLogLoading] = useState(false);
+  const [logError, setLogError] = useState<string>();
+  const [logSearch, setLogSearch] = useState('');
 
   if (!org) {
     return (
@@ -28,25 +34,73 @@ export function RunApexPage({ org }: { org?: OrgIdentity | undefined }) {
 
   async function run() {
     if (!org || !canRun) return;
+    const startedAt = Date.now();
     setLoading(true);
     setError(undefined);
     setResult(undefined);
+    setExecutionLog(undefined);
+    setLogBody('');
+    setLogError(undefined);
+    setLogSearch('');
     try {
-      setResult(
-        await sendMessage<ExecuteAnonymousResult>({
-          type: 'RUN_APEX',
-          payload: {
-            key: org.key,
-            apex,
-            requestId: crypto.randomUUID(),
-            confirmedProduction: productionConfirmed,
-          },
-        }),
-      );
+      const next = await sendMessage<ExecuteAnonymousResult>({
+        type: 'RUN_APEX',
+        payload: {
+          key: org.key,
+          apex,
+          requestId: crypto.randomUUID(),
+          confirmedProduction: productionConfirmed,
+        },
+      });
+      setResult(next);
+      void loadExecutionLog(startedAt);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Salesforce could not execute Apex.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadExecutionLog(startedAt: number) {
+    if (!org) return;
+    setLogLoading(true);
+    setLogError(undefined);
+    try {
+      const query = buildExecutionLogQuery(org.userId, startedAt);
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        if (attempt) await delay(650 * attempt);
+        const page = await sendMessage<QueryPage>({
+          type: 'RUN_QUERY',
+          payload: {
+            key: org.key,
+            soql: query,
+            mode: 'tooling',
+            requestId: crypto.randomUUID(),
+          },
+        });
+        const record = page.records[0];
+        const logId = typeof record?.Id === 'string' ? record.Id : undefined;
+        if (!record || !logId) continue;
+        setExecutionLog(record);
+        setLogBody(
+          await sendMessage<string>({
+            type: 'GET_APEX_LOG_BODY',
+            payload: { key: org.key, logId },
+          }),
+        );
+        return;
+      }
+      setLogError(
+        'No debug log was created. Enable a trace flag for your user in Setup → Debug Logs, then run Apex again.',
+      );
+    } catch (cause) {
+      setLogError(
+        cause instanceof Error
+          ? cause.message
+          : 'Salesforce could not load the execution debug log.',
+      );
+    } finally {
+      setLogLoading(false);
     }
   }
 
@@ -145,6 +199,73 @@ export function RunApexPage({ org }: { org?: OrgIdentity | undefined }) {
           )}
         </section>
       )}
+
+      {(result || logLoading || logError) && (
+        <section className="section-card apex-log-card">
+          <div className="section-title">
+            <div>
+              <h2>Execution debug log</h2>
+              <p>The newest log created for this execution is displayed here.</p>
+            </div>
+            {executionLog && (
+              <div className="apex-log-meta">
+                <span>{formatScalar(executionLog.Status) || 'Unknown status'}</span>
+                <span>{formatDuration(executionLog.DurationMilliseconds)}</span>
+                <span>{formatBytes(executionLog.LogLength)}</span>
+              </div>
+            )}
+          </div>
+          {logLoading ? (
+            <p className="muted">Waiting for Salesforce to publish the debug log…</p>
+          ) : logError ? (
+            <InlineError message={logError} />
+          ) : logBody ? (
+            <>
+              <input
+                className="apex-log-search"
+                value={logSearch}
+                onChange={(event) => setLogSearch(event.target.value)}
+                placeholder="Find text in this log…"
+              />
+              <pre className="apex-log-body">{highlightLog(logBody, logSearch)}</pre>
+            </>
+          ) : null}
+        </section>
+      )}
     </div>
   );
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function formatDuration(value: unknown): string {
+  return typeof value === 'number' ? `${value.toLocaleString()} ms` : 'Duration unavailable';
+}
+
+function formatScalar(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value);
+  }
+  return '';
+}
+
+function formatBytes(value: unknown): string {
+  if (typeof value !== 'number') return 'Size unavailable';
+  return value >= 1_024 ? `${(value / 1_024).toFixed(1)} KB` : `${value} B`;
+}
+
+function highlightLog(body: string, search: string) {
+  const term = search.trim();
+  if (!term) return body;
+  const parts = body.split(new RegExp(`(${escapeRegExp(term)})`, 'gi'));
+  return parts.map((part, index) =>
+    part.toLowerCase() === term.toLowerCase() ? <mark key={index}>{part}</mark> : part,
+  );
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

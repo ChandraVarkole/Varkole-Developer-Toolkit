@@ -62,10 +62,12 @@ export function buildAiPlanningContext(
   return JSON.stringify({
     task: [
       'Return JSON only with this shape: {"objects": ["ObjectApiName"], "queries": ["SELECT ... LIMIT n"]}.',
-      'Choose at most 3 objects to describe and at most 3 SOQL SELECT queries needed to answer the user.',
+      'Choose at most 5 objects to describe and at most 6 SOQL SELECT queries needed to answer the user completely.',
       'Use only object API names from accessibleObjects. Never request writes or Apex.',
       'Select only fields needed for the answer. Use LIMIT 200 when the user explicitly asks for all, a complete list, or a roster; otherwise use LIMIT 20 or less.',
       'When record fields are unknown, use SELECT FIELDS(STANDARD) rather than inventing field names.',
+      'Use the conversation to preserve earlier object names, filters, dates, and follow-up intent.',
+      'For recommendations or decisions, retrieve the records, metadata, access, or limits needed to support the conclusion rather than returning generic advice.',
       'Use empty arrays when the question can be answered from organization metadata alone.',
     ],
     organization: {
@@ -125,8 +127,8 @@ export function parseAiReadPlan(response: string, objects: SalesforceObjectSumma
     .filter((item): item is string => Boolean(item));
 
   return {
-    objects: [...new Set([...plannedObjects, ...queriedObjects])].slice(0, 3),
-    queries: [...new Set(plannedQueries)].slice(0, 3),
+    objects: [...new Set([...plannedObjects, ...queriedObjects])].slice(0, 5),
+    queries: [...new Set(plannedQueries)].slice(0, 6),
   };
 }
 
@@ -226,7 +228,7 @@ function automaticContextValue(
     .filter((term) => term.length >= 3);
   return {
     instructions:
-      'Answer only from these current read-only Salesforce observations. They override unsupported claims in earlier chat messages. They were retrieved with the current user session, so missing or denied data must not be assumed. Never ask the user to manually provide schema or query results; explain any lookup error instead.',
+      'Answer as a senior Salesforce architect and developer using only these current read-only observations plus the conversation. They override unsupported claims in earlier messages. The lookups ran with the current user session, so missing or denied data must not be assumed. Give detailed evidence, impact, a recommended decision, exact Salesforce implementation and validation steps, and safe SOQL examples when useful. Never ask the user to manually provide schema or query results; explain any lookup error instead.',
     organization: {
       name: input.org.organizationName,
       environment: input.org.environment,

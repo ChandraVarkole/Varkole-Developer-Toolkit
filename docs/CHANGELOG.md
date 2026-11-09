@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.7.0 — Developer workflow refinement
+
+- Made object selection type-ahead only: suggestions begin after two characters, match labels and
+  API names, and sort alphabetically without placing missing-label objects first.
+- Reworked Current Record inspection to load automatically from the active Salesforce page, show
+  every accessible described field including blank values, and support searching by label, API
+  name, type, or value. Added an explicit Refresh inspection action.
+- Added the matching Execute Anonymous debug log below each Apex result, including status, timing,
+  size, inline body display, and text search. A clear trace-flag message appears when Salesforce
+  does not create a log.
+- Strengthened AI Agent as a Salesforce-specific architect, developer, administrator, and analyst
+  across all supported providers. Retrieval now uses recent chat history, supports broader bounded
+  read-only evidence gathering, produces more detailed responses, and caches schema foundations to
+  speed up follow-up questions without persisting chats or Salesforce results.
+- Improved compact embedded-header alignment so long organization names and record controls remain
+  contained in the drawer.
+- Deferred GitHub, Azure Repos, and Bitbucket authorization until after the initial Chrome Web Store
+  review to keep this beta's permissions and data disclosure unchanged.
+
 ## 0.6.6 — Private beta package
 
 - Added the required **BETA** suffix to the extension name and toolbar title.
