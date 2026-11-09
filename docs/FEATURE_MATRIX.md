@@ -20,7 +20,7 @@
 | Debug Logs                   | Tooling Query / ApexLog Body          | Apex/log visibility varies                 | Implemented: inline viewer and bounded body search                             |
 | Code Coverage                | Tooling ApexCodeCoverageAggregate     | Apex/test visibility varies                | Implemented: line totals and calculated percentages                            |
 | Users / Access               | REST Query                            | Setup/user/permission visibility varies    | Preview: read-only lists                                                       |
-| Metadata                     | REST `/sobjects` and Describe         | Object and field visibility                | Implemented: searchable object/field schema explorer                           |
+| Metadata                     | REST `/sobjects` and Describe         | Object and field visibility                | Implemented: A–Z object/field schema plus child-relationship metadata          |
 | App Tabs                     | REST `/tabs`                          | Tabs visible to current user               | Preview: read-only available-tab list                                          |
-| AI Agent                     | OpenAI / Anthropic / Gemini / Bedrock | Provider key plus Salesforce access        | Preview: Salesforce-specific, conversation-aware, bounded read-only BYOK       |
+| AI Agent                     | OpenAI / Anthropic / Gemini / Bedrock | Provider key plus Salesforce access        | Preview: relationship-aware retrieval with retained evidence and answer gating |
 | Repository context           | Future GitHub / Azure / Bitbucket API | Separate repository authorization          | Deferred until after initial store review                                      |

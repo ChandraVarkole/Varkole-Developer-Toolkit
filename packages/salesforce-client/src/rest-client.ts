@@ -3,6 +3,7 @@ import type {
   OrgLimit,
   QueryPage,
   QueryRecord,
+  SalesforceChildRelationship,
   SalesforceFieldSummary,
   SalesforceObjectDescribe,
   SalesforceObjectSummary,
@@ -30,6 +31,7 @@ interface RawDescribeResponse {
   name: string;
   label: string;
   fields: SalesforceFieldSummary[];
+  childRelationships?: SalesforceChildRelationship[];
 }
 
 interface RawObjectSummary extends SalesforceObjectSummary {
@@ -105,18 +107,26 @@ export class SalesforceRestClient {
     );
     return result.data.sobjects
       .filter((object) => object.queryable)
-      .map((object) => ({
-        name: object.name,
-        label: object.label,
-        ...(object.keyPrefix ? { keyPrefix: object.keyPrefix } : {}),
-        custom: object.custom,
-        queryable: object.queryable,
-        searchable: object.searchable,
-        createable: Boolean(object.createable),
-        updateable: Boolean(object.updateable),
-        deletable: Boolean(object.deletable),
-      }))
-      .sort((left, right) => left.label.localeCompare(right.label));
+      .map((object) => {
+        const label =
+          typeof object.label === 'string' && !/^missing label$/i.test(object.label.trim())
+            ? object.label.trim()
+            : object.name;
+        return {
+          name: object.name,
+          label,
+          ...(object.keyPrefix ? { keyPrefix: object.keyPrefix } : {}),
+          custom: object.custom,
+          queryable: object.queryable,
+          searchable: object.searchable,
+          createable: Boolean(object.createable),
+          updateable: Boolean(object.updateable),
+          deletable: Boolean(object.deletable),
+        };
+      })
+      .sort((left, right) =>
+        left.label.localeCompare(right.label, undefined, { sensitivity: 'base', numeric: true }),
+      );
   }
 
   async describeObject(
@@ -155,6 +165,24 @@ export class SalesforceRestClient {
           : {}),
         ...(field.picklistValues?.length ? { picklistValues: field.picklistValues } : {}),
       })),
+      childRelationships: (result.data.childRelationships ?? [])
+        .filter(
+          (relationship) =>
+            relationship.childSObject &&
+            relationship.field &&
+            !relationship.childSObject.endsWith('ChangeEvent'),
+        )
+        .map((relationship) => ({
+          childSObject: relationship.childSObject,
+          field: relationship.field,
+          ...(relationship.relationshipName
+            ? { relationshipName: relationship.relationshipName }
+            : {}),
+          cascadeDelete: Boolean(relationship.cascadeDelete),
+          ...(typeof relationship.restrictedDelete === 'boolean'
+            ? { restrictedDelete: relationship.restrictedDelete }
+            : {}),
+        })),
     };
   }
 

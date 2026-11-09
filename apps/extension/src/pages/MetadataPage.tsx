@@ -77,14 +77,16 @@ export function MetadataPage({ org }: { org?: OrgIdentity | undefined }) {
 
   const visibleObjects = useMemo(() => {
     const needle = objectFilter.trim().toLowerCase();
-    return objects.filter((object) => {
-      const label = objectDisplayLabel(object);
-      return (
-        !needle ||
-        object.name.toLowerCase().includes(needle) ||
-        label.toLowerCase().includes(needle)
-      );
-    });
+    return sortSalesforceObjects(
+      objects.filter((object) => {
+        const label = objectDisplayLabel(object);
+        return (
+          !needle ||
+          object.name.toLowerCase().includes(needle) ||
+          label.toLowerCase().includes(needle)
+        );
+      }),
+    );
   }, [objectFilter, objects]);
   const selectedObject = objects.find((object) => object.name === selectedName);
   const fieldRecords = useMemo(
@@ -131,7 +133,7 @@ export function MetadataPage({ org }: { org?: OrgIdentity | undefined }) {
       <div className="metadata-layout">
         <aside className="metadata-object-list">
           <label>
-            <span>Find an object</span>
+            <span>Find an object · A–Z</span>
             <input
               value={objectFilter}
               onChange={(event) => setObjectFilter(event.target.value)}

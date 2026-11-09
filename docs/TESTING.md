@@ -22,7 +22,9 @@
 10. Enable API Access Control and confirm Varkole offers the OAuth fallback rather than repeatedly prompting or silently failing.
 11. In SOQL, type fewer than two object-name characters and verify no suggestions appear. Type a
     second character, verify matching objects are alphabetized by label, select fields, build the
-    query and run it.
+    query and run it. After results load, select another object and verify the old query and results
+    clear. For the same object, add fields and verify existing manually typed fields, `WHERE`,
+    `ORDER BY`, and `LIMIT` clauses remain intact.
 12. Open Varkole from a standard and custom Salesforce record page. Verify Record Inspector opens
     automatically, shows every accessible field including blank values, searches label/API
     name/type/value, and Refresh inspection reloads changes. Also test a pasted 15/18-character ID
@@ -42,6 +44,10 @@
     Salesforce-specific, current-user access is respected, transmitted context is bounded,
     responses are detailed and formatted, follow-ups do not require repeated details, and no chat
     or query result is persisted after the extension page reloads.
+    Specifically verify a Contact with a direct Case but no Case Contact Roles, two Contacts with
+    the same name, `CaseNumber = '00001029'`, a follow-up whose prior assistant message has no
+    retained evidence, zero rows versus an API error, multi-page related records, and malicious
+    instructions stored in a Salesforce text field. Factual record claims must cite `[E#]` evidence.
 20. Verify provider keys exist only in session storage, are removed by Forget key and extension
     reload, and cannot be read by content scripts. Upgrade from v0.6.4 and verify any legacy locally
     remembered key is deleted.
@@ -51,5 +57,7 @@
 22. In the embedded drawer, test long org/user names at narrow Salesforce viewport widths. Verify
     the selector, Inspect current record, Help, user, and expand controls remain aligned and do not
     overflow the drawer.
+23. In Schema Explorer, verify objects remain A–Z after initial load, refresh, and filtering, and
+    objects with absent or “Missing Label” labels sort under their API-name fallback.
 
 Do read-only production validation only after explicit approval. Never use production writes during Phase 1.

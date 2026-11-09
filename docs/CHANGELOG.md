@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.7.1 — Grounded relationships and safer SOQL building
+
+- Made AI retrieval relationship-aware by loading relevant Salesforce Describe metadata before
+  planning, including reference fields and bounded child relationships discovered from the org.
+- Added a controlled second read-only planning pass when relationship evidence is incomplete. Case
+  questions now require direct `Case.ContactId` inspection; `CaseContactRole` remains optional
+  additional evidence and cannot prove the direct relationship is empty.
+- Added in-memory structured evidence across follow-ups: query, object, records, retrieval time,
+  pagination/completeness, inspected relationships, errors, and user-supplied identifiers. Prior AI
+  prose is explicitly unverified and is never promoted into Salesforce evidence.
+- Added evidence states and response validation for successful records, successful zero rows, API
+  errors, partial/capped results, missing lookups, and evidence citations. Ungrounded answers receive
+  one correction pass and are withheld if they still fail validation.
+- Preserved text identifiers such as `Case.CaseNumber` with leading zeros and added bounded
+  pagination for AI lookups.
+- Fixed SOQL field building: selecting a different object clears the old query and results; adding
+  fields to the same object preserves manually written fields, filters, ordering, and limits.
+- Enforced A–Z ordering in Schema Explorer after filtering and clarified the active sort in its UI.
+- Replaced the toolbar, launcher, and in-app artwork with the supplied Gradient Cloud V logo and
+  regenerated optimized 16, 32, 48, and 128 px extension icons.
+
 ## 0.7.0 — Developer workflow refinement
 
 - Made object selection type-ahead only: suggestions begin after two characters, match labels and

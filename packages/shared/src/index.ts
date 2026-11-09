@@ -72,10 +72,19 @@ export interface SalesforceFieldSummary {
   picklistValues?: SalesforcePicklistValue[];
 }
 
+export interface SalesforceChildRelationship {
+  childSObject: string;
+  field: string;
+  relationshipName?: string;
+  cascadeDelete: boolean;
+  restrictedDelete?: boolean;
+}
+
 export interface SalesforceObjectDescribe {
   name: string;
   label: string;
   fields: SalesforceFieldSummary[];
+  childRelationships: SalesforceChildRelationship[];
 }
 
 export interface SalesforceTabInfo {

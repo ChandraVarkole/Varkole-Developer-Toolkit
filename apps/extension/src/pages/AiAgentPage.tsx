@@ -19,6 +19,15 @@ import {
   parseAiReadPlan,
   type AiQueryObservation,
 } from './ai-context';
+import {
+  evidenceAnswerIssue,
+  mergeAiEvidence,
+  mergeQueryPages,
+  relatedDescribeNames,
+  relationshipEvidenceForQuery,
+  selectRelevantAiObjects,
+  shouldRequestRelationshipGapPlan,
+} from './ai-evidence';
 
 const PROVIDERS: {
   id: AiProvider;
@@ -58,6 +67,7 @@ const orgFoundationCache = new Map<
   Promise<{ objects: SalesforceObjectSummary[]; orgInfo?: OrgInfo | undefined }>
 >();
 const describeCache = new Map<string, Promise<SalesforceObjectDescribe>>();
+const transientEvidenceByOrg = new Map<string, AiQueryObservation[]>();
 
 export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
   const [status, setStatus] = useState<AiConnectionStatus>({ configured: false });
@@ -143,6 +153,7 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
       setApiKey('');
       setConsentChecked(false);
       setMessages([]);
+      if (org) transientEvidenceByOrg.delete(org.key);
       setShowConnection(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'The AI provider could not connect.');
@@ -156,6 +167,7 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
     try {
       setStatus(await sendMessage<AiConnectionStatus>({ type: 'DISCONNECT_AI' }));
       setMessages([]);
+      if (org) transientEvidenceByOrg.delete(org.key);
       setConsentChecked(false);
       setShowConnection(true);
     } catch (cause) {
@@ -186,6 +198,11 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
       .map((message) => `${message.role === 'user' ? 'User' : 'AI Agent'}: ${message.content}`)
       .join('\n')
       .slice(-20_000);
+    const userTranscript = conversation
+      .filter((message) => message.role === 'user')
+      .map((message) => message.content)
+      .join('\n')
+      .slice(-12_000);
     setMessages(conversation);
     setPrompt('');
     setAsking(true);
@@ -193,6 +210,12 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
     try {
       setProgress('Reading your accessible org metadata…');
       const { objects, orgInfo } = await loadOrgFoundation(org);
+
+      const retainedEvidence = transientEvidenceByOrg.get(org.key) ?? [];
+      const seedNames = selectRelevantAiObjects(objects, planningTranscript);
+      const seedDescribes = await loadDescribes(org, seedNames);
+      const planningDescribeNames = relatedDescribeNames(seedDescribes, objects, seedNames, 6);
+      let describes = await loadDescribes(org, planningDescribeNames);
 
       setProgress('Planning safe read-only lookups…');
       const planResponse = await sendMessage<string>({
@@ -204,67 +227,109 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
               content: `Create the minimum read-only Salesforce retrieval plan needed for the latest request, using the full conversation for references and follow-ups:\n${planningTranscript}`,
             },
           ],
-          salesforceContext: buildAiPlanningContext(org, objects, planningTranscript),
+          salesforceContext: buildAiPlanningContext(
+            org,
+            objects,
+            planningTranscript,
+            describes,
+            retainedEvidence,
+            userTranscript,
+          ),
           maxOutputTokens: 700,
         },
       });
       const plan = parseAiReadPlan(planResponse, objects);
 
       setProgress('Running permitted Salesforce lookups…');
-      const describes = (
-        await Promise.all(
-          plan.objects.map((objectApiName) =>
-            loadObjectDescribe(org, objectApiName).catch(() => undefined),
-          ),
-        )
-      ).filter((describe): describe is SalesforceObjectDescribe => Boolean(describe));
+      describes = mergeDescribes(describes, await loadDescribes(org, plan.objects));
       const accessQueries = /\b(access|permission|profile|admin|privilege|authoriz)/i.test(
         planningTranscript,
       )
         ? currentUserAccessQueries(org.userId)
         : [];
       const queries = [...new Set([...accessQueries, ...plan.queries])].slice(0, 8);
-      const observations: AiQueryObservation[] = await Promise.all(
-        queries.map(async (query) => {
-          try {
-            const result = await sendMessage<QueryPage>({
-              type: 'RUN_QUERY',
-              payload: {
-                key: org.key,
-                soql: query,
-                mode: 'rest',
-                requestId: crypto.randomUUID(),
+      let currentEvidence = await Promise.all(queries.map((query) => runAiQuery(org, query)));
+
+      if (shouldRequestRelationshipGapPlan(planningTranscript, currentEvidence)) {
+        setProgress('Checking direct Salesforce relationships…');
+        const gapPlanResponse = await sendMessage<string>({
+          type: 'ASK_AI',
+          payload: {
+            messages: [
+              {
+                role: 'user',
+                content:
+                  'Return only the additional read-only Salesforce plan needed to close relationship evidence gaps. Do not repeat completed queries. For Case relationships, Case.ContactId is required; CaseContactRole alone is insufficient.',
               },
-            });
-            return { query, result };
-          } catch (cause) {
-            return {
-              query,
-              error:
-                cause instanceof Error
-                  ? cause.message
-                  : 'The current Salesforce user could not run this lookup.',
-            };
-          }
-        }),
-      );
+            ],
+            salesforceContext: buildAiPlanningContext(
+              org,
+              objects,
+              planningTranscript,
+              describes,
+              mergeAiEvidence(retainedEvidence, currentEvidence),
+              userTranscript,
+            ),
+            maxOutputTokens: 700,
+          },
+        });
+        const gapPlan = parseAiReadPlan(gapPlanResponse, objects);
+        describes = mergeDescribes(describes, await loadDescribes(org, gapPlan.objects));
+        const completed = new Set(currentEvidence.map((item) => item.query.toLowerCase()));
+        const gapQueries = gapPlan.queries
+          .filter((query) => !completed.has(query.toLowerCase()))
+          .slice(0, Math.max(0, 10 - currentEvidence.length));
+        currentEvidence = [
+          ...currentEvidence,
+          ...(await Promise.all(gapQueries.map((query) => runAiQuery(org, query)))),
+        ];
+      }
+
+      const evidence = mergeAiEvidence(retainedEvidence, currentEvidence);
+      transientEvidenceByOrg.set(org.key, evidence);
 
       setProgress('Writing an answer from the accessible results…');
-      const answer = await sendMessage<string>({
+      const salesforceContext = buildAutomaticAiContext({
+        org,
+        orgInfo,
+        objects,
+        describes,
+        observations: evidence,
+        focus: planningTranscript,
+        userFocus: userTranscript,
+      });
+      let answer = await sendMessage<string>({
         type: 'ASK_AI',
         payload: {
           messages: conversation,
-          salesforceContext: buildAutomaticAiContext({
-            org,
-            orgInfo,
-            objects,
-            describes,
-            observations,
-            focus: planningTranscript,
-          }),
+          salesforceContext,
           maxOutputTokens: 4_000,
         },
       });
+      const evidenceIssue = evidenceAnswerIssue(answer, evidence);
+      if (evidenceIssue) {
+        setProgress('Validating Salesforce evidence…');
+        answer = await sendMessage<string>({
+          type: 'ASK_AI',
+          payload: {
+            messages: [
+              ...conversation,
+              {
+                role: 'user' as const,
+                content: `Rewrite the answer to satisfy this evidence validation failure: ${evidenceIssue} Cite factual Salesforce claims only with supplied [E#] evidence. Clearly label anything not inspected, partial, or errored.`,
+              },
+            ].slice(-20),
+            salesforceContext,
+            maxOutputTokens: 4_000,
+          },
+        });
+        const remainingIssue = evidenceAnswerIssue(answer, evidence);
+        if (remainingIssue) {
+          throw new Error(
+            `AI Agent withheld an ungrounded response. ${remainingIssue} Please retry the question.`,
+          );
+        }
+      }
       const assistantMessage: AiChatMessage = { role: 'assistant', content: answer };
       setMessages([...conversation, assistantMessage].slice(-20));
     } catch (cause) {
@@ -446,7 +511,14 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
               </p>
             </div>
             {messages.length > 0 && (
-              <button className="button button-ghost" type="button" onClick={() => setMessages([])}>
+              <button
+                className="button button-ghost"
+                type="button"
+                onClick={() => {
+                  setMessages([]);
+                  transientEvidenceByOrg.delete(org.key);
+                }}
+              >
                 Clear chat
               </button>
             )}
@@ -582,6 +654,84 @@ async function loadObjectDescribe(
   });
   describeCache.set(key, request);
   return request;
+}
+
+async function loadDescribes(
+  org: OrgIdentity,
+  objectApiNames: string[],
+): Promise<SalesforceObjectDescribe[]> {
+  return (
+    await Promise.all(
+      [...new Set(objectApiNames)].map((objectApiName) =>
+        loadObjectDescribe(org, objectApiName).catch(() => undefined),
+      ),
+    )
+  ).filter((describe): describe is SalesforceObjectDescribe => Boolean(describe));
+}
+
+function mergeDescribes(
+  current: SalesforceObjectDescribe[],
+  additional: SalesforceObjectDescribe[],
+): SalesforceObjectDescribe[] {
+  return [
+    ...new Map([...current, ...additional].map((describe) => [describe.name, describe])).values(),
+  ];
+}
+
+async function runAiQuery(org: OrgIdentity, query: string): Promise<AiQueryObservation> {
+  const maxRecords = 500;
+  const maxPages = 3;
+  const retrievedAt = new Date().toISOString();
+  try {
+    const pages: QueryPage[] = [
+      await sendMessage<QueryPage>({
+        type: 'RUN_QUERY',
+        payload: {
+          key: org.key,
+          soql: query,
+          mode: 'rest',
+          requestId: crypto.randomUUID(),
+        },
+      }),
+    ];
+    while (
+      pages.length < maxPages &&
+      pages.reduce((count, page) => count + page.records.length, 0) < maxRecords &&
+      pages.at(-1)?.nextRecordsUrl
+    ) {
+      pages.push(
+        await sendMessage<QueryPage>({
+          type: 'QUERY_NEXT',
+          payload: {
+            key: org.key,
+            nextRecordsUrl: pages.at(-1)!.nextRecordsUrl!,
+            requestId: crypto.randomUUID(),
+          },
+        }),
+      );
+    }
+    const last = pages.at(-1)!;
+    const totalRetrieved = pages.reduce((count, page) => count + page.records.length, 0);
+    const capped = Boolean(last.nextRecordsUrl) || totalRetrieved > maxRecords;
+    return {
+      query,
+      result: mergeQueryPages(pages, maxRecords),
+      retrievedAt,
+      pages: pages.length,
+      capped,
+      relationships: relationshipEvidenceForQuery(query),
+    };
+  } catch (cause) {
+    return {
+      query,
+      retrievedAt,
+      relationships: relationshipEvidenceForQuery(query),
+      error:
+        cause instanceof Error
+          ? cause.message
+          : 'The current Salesforce user could not run this lookup.',
+    };
+  }
 }
 
 function currentUserAccessQueries(userId: string): string[] {

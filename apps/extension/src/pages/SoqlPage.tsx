@@ -5,6 +5,7 @@ import { ObjectFieldPicker } from '../components/ObjectFieldPicker';
 import { QueryResults } from '../components/QueryResults';
 import { EmptyState, InlineError } from '../components/Status';
 import { orgName } from '../org';
+import { mergeBuilderFieldsIntoSoql, updateSoqlForObjectChange } from './soql-builder';
 
 const DEFAULT_QUERY = '';
 
@@ -140,6 +141,25 @@ export function SoqlPage({ org }: { org?: OrgIdentity | undefined }) {
     }
   }
 
+  function changeBuilderObject(nextObject: string) {
+    const changed = builderObject.toLowerCase() !== nextObject.toLowerCase();
+    setSoql((current) => updateSoqlForObjectChange(current, builderObject, nextObject));
+    setBuilderObject(nextObject);
+    if (changed) {
+      setBuilderFields([]);
+      setResult(undefined);
+      setError(undefined);
+      setPageNumber(1);
+    }
+  }
+
+  function applyBuilderFields() {
+    setSoql((current) => mergeBuilderFieldsIntoSoql(current, builderObject, builderFields));
+    setResult(undefined);
+    setError(undefined);
+    setPageNumber(1);
+  }
+
   if (!org) {
     return (
       <EmptyState
@@ -180,7 +200,7 @@ export function SoqlPage({ org }: { org?: OrgIdentity | undefined }) {
         <ObjectFieldPicker
           org={org}
           objectApiName={builderObject}
-          onObjectApiNameChange={setBuilderObject}
+          onObjectApiNameChange={changeBuilderObject}
           selectedFields={builderFields}
           onSelectedFieldsChange={setBuilderFields}
         />
@@ -190,11 +210,9 @@ export function SoqlPage({ org }: { org?: OrgIdentity | undefined }) {
             className="button button-secondary"
             type="button"
             disabled={!builderObject.trim() || builderFields.length === 0}
-            onClick={() =>
-              setSoql(`SELECT ${builderFields.join(', ')}\nFROM ${builderObject.trim()}\nLIMIT 100`)
-            }
+            onClick={applyBuilderFields}
           >
-            Build query
+            {soql.trim() ? 'Add fields to query' : 'Build query'}
           </button>
         </div>
       </section>
@@ -227,6 +245,9 @@ export function SoqlPage({ org }: { org?: OrgIdentity | undefined }) {
                     onClick={() => {
                       setSoql(entry.soql);
                       setMode(entry.mode);
+                      setResult(undefined);
+                      setError(undefined);
+                      setPageNumber(1);
                       setShowHistory(false);
                     }}
                   >
@@ -263,7 +284,12 @@ export function SoqlPage({ org }: { org?: OrgIdentity | undefined }) {
           placeholder="Enter a SOQL query or choose an object and fields above"
           spellCheck={false}
           value={soql}
-          onChange={(event) => setSoql(event.target.value)}
+          onChange={(event) => {
+            setSoql(event.target.value);
+            setResult(undefined);
+            setError(undefined);
+            setPageNumber(1);
+          }}
           onKeyDown={(event) => {
             if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
               event.preventDefault();

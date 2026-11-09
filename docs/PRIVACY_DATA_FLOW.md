@@ -13,7 +13,10 @@ directly from the extension to the provider selected by the user.
   version, timestamps, and up to 50 successful query-history entries per org. Query results are not
   stored. Provider API keys are never written to local or sync storage. Version 0.6.5 also deletes
   provider keys that an earlier preview may have saved locally.
-- In memory/UI: current query text and current result page. Results are not persisted.
+- In memory/UI: current query text and result page, recent AI chat messages, and bounded structured
+  AI lookup evidence used for follow-up grounding. Evidence can include queries, retrieved records,
+  timestamps, relationship coverage, completeness, and errors. It is cleared with the extension
+  page/reload and is never written to local or sync storage.
 - Network: Salesforce identity and REST/Tooling requests; OAuth only when the fallback is selected.
   After the user affirmatively approves the provider-specific disclosure and sends a question, the
   automatically selected context and recent chat messages go directly to OpenAI, Anthropic, Google

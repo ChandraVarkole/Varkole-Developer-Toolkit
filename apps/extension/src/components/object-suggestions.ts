@@ -3,7 +3,7 @@ import type { SalesforceObjectSummary } from '@varkole/shared';
 const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
 
 export function objectDisplayLabel(object: SalesforceObjectSummary): string {
-  const label = object.label.trim();
+  const label = typeof object.label === 'string' ? object.label.trim() : '';
   return !label || /^missing label$/i.test(label) ? object.name : label;
 }
 
