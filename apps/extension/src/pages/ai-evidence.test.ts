@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { QueryPage, SalesforceObjectDescribe } from '@varkole/shared';
 import {
+  buildDeterministicRecordQueries,
   evidenceAnswerIssue,
   mergeQueryPages,
   relationshipEvidenceForQuery,
@@ -103,6 +104,50 @@ describe('AI Salesforce evidence', () => {
         { query: 'SELECT COUNT() total FROM Account LIMIT 20', result: page([{ total: 12 }]) },
       ]),
     ).toBe(false);
+    expect(
+      shouldRequestDataGapPlan(
+        'Show the oldest Account',
+        [{ query: 'SELECT Id FROM User LIMIT 1', result: page([{ Id: '005x' }]) }],
+        ['Account'],
+      ),
+    ).toBe(true);
+  });
+
+  it('builds a deterministic oldest-record query from described accessible fields', () => {
+    const account = {
+      name: 'Account',
+      label: 'Accounts',
+      custom: false,
+      queryable: true,
+      searchable: true,
+    };
+    const fields = [
+      { name: 'Id', label: 'Account ID', type: 'id', sortable: true, nameField: false },
+      { name: 'Name', label: 'Account Name', type: 'string', sortable: true, nameField: true },
+      {
+        name: 'CreatedDate',
+        label: 'Created Date',
+        type: 'datetime',
+        sortable: true,
+        nameField: false,
+      },
+    ].map((field) => ({
+      ...field,
+      custom: false,
+      nillable: false,
+      filterable: true,
+      createable: false,
+      updateable: false,
+    }));
+    expect(
+      buildDeterministicRecordQueries(
+        'Get the oldest Account',
+        [account],
+        [{ name: 'Account', label: 'Account', fields, childRelationships: [] }],
+      ),
+    ).toEqual([
+      'SELECT Id, Name, CreatedDate FROM Account ORDER BY CreatedDate ASC, Id ASC LIMIT 1',
+    ]);
   });
 
   it('prioritizes report, dashboard, flow, and permission objects from user intent', () => {

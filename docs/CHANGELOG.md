@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.6 — Reliable simple record lookups
+
+- Added deterministic read-only SOQL for straightforward oldest, newest, list, and count questions
+  using the requested object's live describe metadata.
+- Fixed evidence-gap detection so successful but irrelevant earlier lookups cannot suppress a
+  required query for the object named in the current request.
+- Kept conversational follow-ups useful by resolving simple requests from the two most recent user
+  messages without treating prior assistant prose as verified Salesforce data.
+- Prevented provider responses from describing internal model tool availability; final answers now
+  report the actual Salesforce lookup result, error, or missing evidence.
+
 ## 0.7.5 — Read-only Apex and component inspection
 
 - Added permission-bound Salesforce Tooling API retrieval for local/unmanaged Apex classes,

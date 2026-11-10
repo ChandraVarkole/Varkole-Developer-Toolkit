@@ -112,22 +112,93 @@ export function shouldRequestRelationshipGapPlan(
 export function shouldRequestDataGapPlan(
   conversation: string,
   observations: AiQueryObservation[],
+  expectedObjects: string[] = [],
 ): boolean {
   const queries = observations.map((observation) => observation.query).join('\n');
   const successful = observations.filter((observation) => observation.result && !observation.error);
   const dataIntent =
-    /\b(show|list|find|get|retrieve|query|records?|rows?|who|which users?|how many|count|sum|average|avg|minimum|maximum|total)\b/i.test(
+    /\b(show|list|find|get|retrieve|query|records?|rows?|who|which users?|how many|count|sum|average|avg|minimum|maximum|total|oldest|earliest|newest|latest|recent|first|last)\b/i.test(
       conversation,
     ) ||
     /\b(reports?|dashboards?|permissions?|profiles?|access assignments?)\b/i.test(conversation);
   if (!dataIntent) return false;
   if (observations.length === 0 || successful.length === 0) return true;
+  if (
+    expectedObjects.some(
+      (objectName) =>
+        !successful.some(
+          (observation) =>
+            mainQueryObject(observation.query)?.toLowerCase() === objectName.toLowerCase(),
+        ),
+    )
+  ) {
+    return true;
+  }
   if (/\breports?\b/i.test(conversation) && !/\bFROM\s+Report\b/i.test(queries)) return true;
   if (/\bdashboards?\b/i.test(conversation) && !/\bFROM\s+Dashboard\b/i.test(queries)) return true;
   if (/\b(how many|count|sum|average|avg|minimum|maximum|total)\b/i.test(conversation)) {
     return !/\b(COUNT|SUM|AVG|MIN|MAX)\s*\(/i.test(queries);
   }
   return false;
+}
+
+export function buildDeterministicRecordQueries(
+  conversation: string,
+  objects: SalesforceObjectSummary[],
+  describes: SalesforceObjectDescribe[],
+): string[] {
+  const simpleDataIntent =
+    /\b(show|list|find|get|retrieve|query|records?|rows?|how many|count|number of|total|oldest|earliest|newest|latest|most recent|first|last)\b/i.test(
+      conversation,
+    );
+  if (!simpleDataIntent) return [];
+
+  const objectName = selectRelevantAiObjects(objects, conversation, 1)[0];
+  const describe = describes.find(
+    (candidate) => candidate.name.toLowerCase() === objectName?.toLowerCase(),
+  );
+  if (!objectName || !describe) return [];
+
+  if (/\b(how many|count|number of|total)\b/i.test(conversation)) {
+    const idField = describe.fields.find((field) => field.name === 'Id');
+    return [
+      idField
+        ? `SELECT COUNT(${idField.name}) total FROM ${objectName} LIMIT 1`
+        : `SELECT COUNT() FROM ${objectName} LIMIT 1`,
+    ];
+  }
+
+  const fields = deterministicFields(describe);
+  const projection = fields.length ? fields.join(', ') : 'FIELDS(STANDARD)';
+  const createdDate = describe.fields.find(
+    (field) => field.name === 'CreatedDate' && field.sortable,
+  );
+  const id = describe.fields.find((field) => field.name === 'Id' && field.sortable);
+  const oldest = /\b(oldest|earliest|first)\b/i.test(conversation);
+  const newest = /\b(newest|latest|most recent|last)\b/i.test(conversation);
+  const order =
+    createdDate && (oldest || newest)
+      ? ` ORDER BY ${createdDate.name} ${oldest ? 'ASC' : 'DESC'}${id ? `, ${id.name} ${oldest ? 'ASC' : 'DESC'}` : ''}`
+      : '';
+  const singleRecord = oldest || newest;
+  return [`SELECT ${projection} FROM ${objectName}${order} LIMIT ${singleRecord ? 1 : 20}`];
+}
+
+function deterministicFields(describe: SalesforceObjectDescribe): string[] {
+  const available = new Map(describe.fields.map((field) => [field.name, field]));
+  const nameFields = describe.fields.filter((field) => field.nameField).map((field) => field.name);
+  return [
+    'Id',
+    ...nameFields,
+    'Name',
+    'CaseNumber',
+    'Subject',
+    'DeveloperName',
+    'CreatedDate',
+    'LastModifiedDate',
+  ]
+    .filter((name, index, names) => available.has(name) && names.indexOf(name) === index)
+    .slice(0, 7);
 }
 
 export function mergeAiEvidence(

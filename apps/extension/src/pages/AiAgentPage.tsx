@@ -25,7 +25,9 @@ import {
   type AiQueryObservation,
 } from './ai-context';
 import {
+  buildDeterministicRecordQueries,
   evidenceAnswerIssue,
+  mainQueryObject,
   mergeAiEvidence,
   mergeQueryPages,
   relatedDescribeNames,
@@ -236,6 +238,11 @@ export function AiAgentPage({
       .map((message) => message.content)
       .join('\n')
       .slice(-12_000);
+    const recentUserTranscript = conversation
+      .filter((message) => message.role === 'user')
+      .slice(-2)
+      .map((message) => message.content)
+      .join('\n');
     setMessages(conversation);
     setPrompt('');
     setAsking(true);
@@ -290,6 +297,14 @@ export function AiAgentPage({
 
       setProgress('Running permitted Salesforce lookups…');
       describes = mergeDescribes(describes, await loadDescribes(org, plan.objects));
+      const deterministicQueries = buildDeterministicRecordQueries(
+        recentUserTranscript,
+        objects,
+        describes,
+      );
+      const deterministicObjects = deterministicQueries
+        .map(mainQueryObject)
+        .filter((name): name is string => Boolean(name));
       const accessQueries = /\b(access|permission|profile|admin|privilege|authoriz)/i.test(
         lookupTranscript,
       )
@@ -302,7 +317,13 @@ export function AiAgentPage({
         planningTranscript,
       );
       const queries = [
-        ...new Set([...accessQueries, ...pageQueries, ...analyticsQueries, ...plan.queries]),
+        ...new Set([
+          ...deterministicQueries,
+          ...accessQueries,
+          ...pageQueries,
+          ...analyticsQueries,
+          ...plan.queries,
+        ]),
       ].slice(0, 8);
       const codeQueries = buildCodeDiscoveryQueries(lookupTranscript);
       let currentEvidence = [
@@ -355,7 +376,7 @@ export function AiAgentPage({
         ];
       }
 
-      if (shouldRequestDataGapPlan(lookupTranscript, currentEvidence)) {
+      if (shouldRequestDataGapPlan(recentUserTranscript, currentEvidence, deterministicObjects)) {
         setProgress('Closing Salesforce evidence gaps…');
         const gapPlanResponse = await sendMessage<string>({
           type: 'ASK_AI',
