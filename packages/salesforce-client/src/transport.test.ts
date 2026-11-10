@@ -54,6 +54,55 @@ describe('SalesforceTransport', () => {
     expect((request?.headers as Record<string, string>).Accept).toBe('text/plain');
   });
 
+  it('sends JSON writes once with the requested method and bearer auth', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify([{ success: true, id: '001000000000001AAA', errors: [] }]), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const transport = new SalesforceTransport({
+      instanceUrl: 'https://acme.my.salesforce.com',
+      accessToken: 'secret-token',
+      fetchImpl,
+    });
+
+    await transport.writeJson('POST', '/services/data/v68.0/composite/sobjects', {
+      allOrNone: false,
+      records: [{ attributes: { type: 'Account' }, Name: 'Acme' }],
+    });
+
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    const [, request] = fetchImpl.mock.calls[0] ?? [];
+    expect(request).toMatchObject({
+      method: 'POST',
+      body: JSON.stringify({
+        allOrNone: false,
+        records: [{ attributes: { type: 'Account' }, Name: 'Acme' }],
+      }),
+    });
+    expect((request?.headers as Record<string, string>).Authorization).toBe('Bearer secret-token');
+  });
+
+  it('does not automatically retry a failed write', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify([{ errorCode: 'SERVER_ERROR', message: 'failed' }]), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const transport = new SalesforceTransport({
+      instanceUrl: 'https://acme.my.salesforce.com',
+      accessToken: 'secret-token',
+      fetchImpl,
+      maxRetries: 3,
+    });
+
+    await expect(
+      transport.writeJson('PATCH', '/services/data/v68.0/composite/sobjects', {}),
+    ).rejects.toThrow('failed');
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
   it('maps an invalid session to a reconnect error', async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify([{ errorCode: 'INVALID_SESSION_ID', message: 'expired' }]), {

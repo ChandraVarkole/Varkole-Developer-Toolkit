@@ -32,11 +32,15 @@
 13. In Export, preview a query and download CSV/JSON; verify relationship fields are flattened, CSV quotes are escaped and formula-like values are prefixed safely.
 14. Open Logs, Coverage, Users, Access, Metadata and App Tabs; verify supported pages load and insufficient permissions are reported without crashing.
 15. Open Settings → Developer diagnostics, copy the safe context, then inspect the Varkole frame and verify source maps and `services/data` Network requests.
-16. In a sandbox with a current trace flag, run benign anonymous Apex, a compile error and a runtime
-    exception. Verify the corresponding Execute Anonymous log opens below the result and its search
-    works. Disable the trace flag and verify the enable-logging message. In Production, verify
+16. In a sandbox, run benign anonymous Apex, a compile error and a runtime exception. Verify the
+    result shows compile/runtime details and directs the user to the Debug Logs tab. With a trace
+    flag enabled, open Debug Logs and verify the latest log appears there. In Production, verify
     acknowledgement and exact typed confirmation are both required; do not test production writes.
-17. In Import Preview, test quoted commas/newlines, duplicate headers, uneven rows and unmapped fields. Confirm no Salesforce network request is made.
+17. In Import, use disposable sandbox records to test CSV upload and paste, quoted commas/newlines,
+    duplicate headers, uneven rows, unmapped fields, automatic label/API-name mapping, `#NULL!`,
+    create, update and delete. Verify CRUD/FLS, validation and automation errors appear per row;
+    successful rows are not automatically retried or rolled back. Verify delete requires `DELETE N`
+    and Production requires `IMPORT N`. Never use production data for this test.
 18. Connect every supported AI provider with a test key; verify optional host permission denial,
     invalid key, invalid model, quota/rate-limit, offline, and successful responses.
 19. Ask AI questions that require schema, records, permissions, implementation recommendations,
@@ -59,5 +63,7 @@
     overflow the drawer.
 23. In Schema Explorer, verify objects remain A–Z after initial load, refresh, and filtering, and
     objects with absent or “Missing Label” labels sort under their API-name fallback.
+24. In App Navigation, verify tabs sort A–Z, every available link opens on the selected Salesforce
+    org, and a returned absolute URL for another host is not rendered as a link.
 
 Do read-only production validation only after explicit approval. Never use production writes during Phase 1.

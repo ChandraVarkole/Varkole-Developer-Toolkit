@@ -2,9 +2,9 @@
 
 ## Single purpose
 
-Varkole Developer Toolkit provides read-only Salesforce inspection and developer utilities in the
-current signed-in Salesforce browser session, plus clearly guarded developer actions such as
-execute-anonymous Apex.
+Varkole Developer Toolkit provides Salesforce inspection and developer utilities in the current
+signed-in Salesforce browser session, plus clearly guarded developer actions such as
+execute-anonymous Apex and user-confirmed CSV record imports.
 
 ## Basic review path
 
@@ -47,8 +47,10 @@ key, Salesforce record value, query result, or AI answer is persisted in local o
 ## Production safety
 
 Read-only tools identify production clearly. Execute-anonymous Apex is guarded by explicit
-production acknowledgement and typed confirmation. Reviewers should use a sandbox and must not run
-write operations in a production org.
+production acknowledgement and typed confirmation. CSV create, update and delete require mapping,
+an irreversible-change acknowledgement and an additional typed confirmation in Production; delete
+also requires a typed row-count confirmation. Reviewers should use disposable sandbox records and
+must not run write operations in a production org.
 
 ## Support and privacy
 

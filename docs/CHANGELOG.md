@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.7.8 — Navigation, data import, and org release details
+
+- Added secure same-org hyperlinks to every available Salesforce tab in App Navigation.
+- Simplified Run Anonymous Apex by removing its duplicate inline log viewer and directing users to
+  the dedicated Debug Logs tab when debug logging is enabled.
+- Replaced Import Preview with a guarded CSV data loader for create, update and delete operations,
+  including object/field discovery, label/API-name mapping, type validation, a 2,000-row browser
+  limit, 200-row Salesforce collection batches, explicit irreversible and Production confirmations,
+  and per-row results. Writes are processed once and are never automatically retried or rolled back.
+- Added the Salesforce release label and latest platform API version to Org Info using Salesforce's
+  Versions resource.
+- Added regression coverage for import coercion, composite write endpoints, no-retry writes,
+  release detection, and same-org navigation links.
+
 ## 0.7.7 — Flow inventory retrieval
 
 - Added a deterministic, permission-bound Tooling API query for requests to list accessible Flow

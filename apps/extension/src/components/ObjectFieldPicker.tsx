@@ -19,6 +19,7 @@ export function ObjectFieldPicker({
   onSelectedFieldsChange,
   onObjectsLoaded,
   onDescribeLoaded,
+  showFields = true,
 }: {
   org: OrgIdentity;
   objectApiName: string;
@@ -27,6 +28,7 @@ export function ObjectFieldPicker({
   onSelectedFieldsChange: (fields: string[]) => void;
   onObjectsLoaded?: ((objects: SalesforceObjectSummary[]) => void) | undefined;
   onDescribeLoaded?: ((describe: SalesforceObjectDescribe) => void) | undefined;
+  showFields?: boolean | undefined;
 }) {
   const [objects, setObjects] = useState<SalesforceObjectSummary[]>([]);
   const [objectDraft, setObjectDraft] = useState<string>();
@@ -132,10 +134,10 @@ export function ObjectFieldPicker({
   return (
     <div className="schema-assistant">
       <div className="schema-assistant-header">
-        <strong>Choose object and fields</strong>
+        <strong>{showFields ? 'Choose object and fields' : 'Choose object'}</strong>
         {loadingObjects && <span className="muted">Loading objects…</span>}
       </div>
-      <div className="schema-controls">
+      <div className={`schema-controls ${showFields ? '' : 'single'}`}>
         <label>
           <span>Object</span>
           <input
@@ -170,18 +172,20 @@ export function ObjectFieldPicker({
             <small className="input-hint">Type at least 2 characters</small>
           )}
         </label>
-        <label>
-          <span>Fields</span>
-          <input
-            value={fieldFilter}
-            onChange={(event) => setFieldFilter(event.target.value)}
-            placeholder={activeDescribe ? 'Start typing field name' : 'Choose an object first'}
-            disabled={!activeDescribe}
-          />
-        </label>
+        {showFields && (
+          <label>
+            <span>Fields</span>
+            <input
+              value={fieldFilter}
+              onChange={(event) => setFieldFilter(event.target.value)}
+              placeholder={activeDescribe ? 'Start typing field name' : 'Choose an object first'}
+              disabled={!activeDescribe}
+            />
+          </label>
+        )}
       </div>
       {error && <p className="schema-error">{error}</p>}
-      {loadingFields ? (
+      {!showFields ? null : loadingFields ? (
         <p className="muted">Loading fields…</p>
       ) : activeDescribe ? (
         <div className="field-suggestions" aria-label={`${activeDescribe.label} field suggestions`}>

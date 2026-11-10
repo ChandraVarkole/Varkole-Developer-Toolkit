@@ -205,6 +205,37 @@ async function handleRequest(request: UiRequest): Promise<unknown> {
         ),
       );
     }
+    case 'IMPORT_RECORDS': {
+      const org = await ensureKnownOrg(request.payload.key);
+      if (!request.payload.confirmedIrreversible) {
+        throw new AppError({
+          code: 'INVALID_REQUEST',
+          message:
+            'Import requires explicit confirmation that successful changes cannot be reverted.',
+          retryable: false,
+        });
+      }
+      if (org.environment === 'production' && !request.payload.confirmedProduction) {
+        throw new AppError({
+          code: 'INVALID_REQUEST',
+          message: 'Production import requires the explicit production confirmation.',
+          retryable: false,
+        });
+      }
+      return runAbortable(request.payload.requestId, (signal) =>
+        withRestClient(
+          request.payload.key,
+          (client) =>
+            client.importRecords(
+              request.payload.objectApiName,
+              request.payload.operation,
+              request.payload.records,
+              signal,
+            ),
+          signal,
+        ),
+      );
+    }
     case 'QUERY_NEXT':
       return runAbortable(request.payload.requestId, (signal) =>
         request.payload.mode === 'tooling'

@@ -753,6 +753,17 @@ code,
   background: #fff9f7;
   border-color: #e8b9b0;
 }
+.button-danger {
+  color: white;
+  background: #b43f32;
+  border-color: #9e3429;
+  box-shadow: 0 5px 13px rgb(158 52 41 / 18%);
+}
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
 .button-full {
   width: 100%;
 }
@@ -998,6 +1009,9 @@ code,
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+.schema-controls.single {
+  grid-template-columns: minmax(0, 1fr);
 }
 .field-suggestions {
   max-height: 138px;
@@ -2693,6 +2707,19 @@ tbody tr:hover td {
     monospace;
   white-space: pre-wrap;
 }
+.apex-log-note {
+  margin: -8px 0 0;
+  padding: 11px 13px;
+  border: 1px solid #cfe0f2;
+  border-radius: 9px;
+  color: #4c617c;
+  background: #f4f8fd;
+  font-size: 11px;
+}
+.apex-log-note a {
+  color: #086bc9;
+  font-weight: 750;
+}
 .apex-log-card {
   min-width: 0;
 }
@@ -2772,6 +2799,163 @@ tbody tr:hover td {
   margin: 4px 0 0;
   color: var(--muted);
   font-size: 11px;
+}
+
+.app-tabs-card {
+  padding: 0;
+  overflow: hidden;
+}
+.app-tabs-grid {
+  display: grid;
+}
+.app-tab-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #e5ebf3;
+}
+.app-tab-row:last-child {
+  border-bottom: 0;
+}
+.app-tab-row > div {
+  min-width: 0;
+}
+.app-tab-row strong,
+.app-tab-row span {
+  display: block;
+}
+.app-tab-row strong {
+  overflow: hidden;
+  color: #1d2c4b;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-tab-row > div > span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+}
+.app-tab-row .button span {
+  display: inline;
+}
+
+.import-page {
+  max-width: 1180px;
+}
+.import-step-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 14px;
+  color: #1c2d4d;
+  font-size: 14px;
+}
+.import-step-title > span {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  background: #087ff5;
+  font-size: 10px;
+  font-weight: 850;
+}
+.import-operation-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 320px);
+  margin-bottom: 14px;
+}
+.import-operation-grid label,
+.import-mapping-table label,
+.import-confirmation > label:not(.confirmation-check) {
+  display: grid;
+  gap: 6px;
+  color: #52617a;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.import-operation-grid select,
+.import-mapping-table select,
+.import-confirmation input[type='text'],
+.import-confirmation > label:not(.confirmation-check) input {
+  min-width: 0;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid #ced9e7;
+  border-radius: 8px;
+  color: #1d2d4b;
+  background: white;
+  font-size: 11px;
+  text-transform: none;
+}
+.import-file-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px dashed #9eb7d5;
+  border-radius: 9px;
+  color: #285c91;
+  background: #f7fbff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+.import-file-picker input {
+  width: min(250px, 100%);
+}
+.import-mapping-table {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  margin-bottom: 14px;
+}
+.import-mapping-table label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.import-confirmation {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid #c9d9eb;
+  border-radius: 12px;
+  color: #243653;
+  background: #f6f9fd;
+}
+.import-confirmation.danger {
+  border-color: #efc4bb;
+  background: #fff6f3;
+}
+.import-confirmation p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+}
+.import-confirmation > label:not(.confirmation-check) {
+  max-width: 420px;
+}
+.import-confirmation .button {
+  width: fit-content;
+}
+
+@media (max-width: 700px) {
+  .import-mapping-table {
+    grid-template-columns: 1fr;
+  }
+  .app-tab-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 .ai-agent-header h1 {

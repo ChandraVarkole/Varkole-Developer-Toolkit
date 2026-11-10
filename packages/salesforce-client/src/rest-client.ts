@@ -1,4 +1,6 @@
 import type {
+  ImportOperation,
+  ImportRecordResult,
   OrgInfo,
   OrgLimit,
   QueryPage,
@@ -46,6 +48,12 @@ interface RawTabInfo {
   url?: string;
   sobjectName?: string;
   custom?: boolean;
+}
+
+interface RawApiVersion {
+  label: string;
+  url: string;
+  version: string;
 }
 
 export interface RestClientOptions {
@@ -197,6 +205,37 @@ export class SalesforceRestClient {
     }));
   }
 
+  async importRecords(
+    objectApiName: string,
+    operation: ImportOperation,
+    records: Record<string, unknown>[],
+    signal?: AbortSignal,
+  ): Promise<ImportRecordResult[]> {
+    validateImportRequest(objectApiName, operation, records);
+    const endpoint = `${this.apiRoot}/composite/sobjects`;
+    if (operation === 'delete') {
+      const ids = records.map((record) => String(record.Id));
+      const result = await this.transport.writeJson<ImportRecordResult[]>(
+        'DELETE',
+        `${endpoint}?ids=${ids.map(encodeURIComponent).join(',')}&allOrNone=false`,
+        undefined,
+        signal,
+      );
+      return result.data;
+    }
+    const payload = {
+      allOrNone: false,
+      records: records.map((record) => ({ attributes: { type: objectApiName }, ...record })),
+    };
+    const result = await this.transport.writeJson<ImportRecordResult[]>(
+      operation === 'insert' ? 'POST' : 'PATCH',
+      endpoint,
+      payload,
+      signal,
+    );
+    return result.data;
+  }
+
   async getReportResult(reportId: string, signal?: AbortSignal): Promise<Record<string, unknown>> {
     if (!/^00O[A-Za-z0-9]{12}(?:[A-Za-z0-9]{3})?$/.test(reportId)) {
       throw new Error('Enter a valid Salesforce report ID.');
@@ -230,15 +269,22 @@ export class SalesforceRestClient {
     const unavailableLimits: { limits: Record<string, OrgLimit>; apiUsage?: string } = {
       limits: {},
     };
-    const [orgPage, limitResult] = await Promise.all([
+    const [orgPage, limitResult, versions] = await Promise.all([
       this.query(
         'SELECT Id, Name, OrganizationType, InstanceName, IsSandbox, FiscalYearStartMonth FROM Organization LIMIT 1',
         signal,
       ),
       this.limits(signal).catch(() => unavailableLimits),
+      this.transport
+        .get<RawApiVersion[]>('/services/data/', signal)
+        .then((result) => result.data)
+        .catch(() => []),
     ]);
     const org = orgPage.records[0] as OrganizationRecord | undefined;
     if (!org) throw new Error('Salesforce did not return an Organization record.');
+    const latestVersion = [...versions].sort(
+      (left, right) => Number(right.version) - Number(left.version),
+    )[0];
     return {
       id: org.Id,
       name: org.Name,
@@ -247,11 +293,47 @@ export class SalesforceRestClient {
       isSandbox: org.IsSandbox,
       ...(org.FiscalYearStartMonth ? { fiscalYearStartMonth: org.FiscalYearStartMonth } : {}),
       apiVersion,
+      ...(latestVersion?.label ? { releaseName: latestVersion.label } : {}),
+      ...(latestVersion?.version ? { latestApiVersion: latestVersion.version } : {}),
       instanceUrl: identity.instanceUrl,
       username: identity.username,
       displayName: identity.displayName,
       limits: limitResult.limits,
       ...(limitResult.apiUsage ? { apiUsage: limitResult.apiUsage } : {}),
     };
+  }
+}
+
+function validateImportRequest(
+  objectApiName: string,
+  operation: ImportOperation,
+  records: Record<string, unknown>[],
+): void {
+  if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(objectApiName)) {
+    throw new Error('Enter a valid Salesforce object API name.');
+  }
+  if (!['insert', 'update', 'delete'].includes(operation)) {
+    throw new Error('Choose a supported import operation.');
+  }
+  if (records.length < 1 || records.length > 200) {
+    throw new Error('Each Salesforce import batch must contain 1 through 200 records.');
+  }
+  for (const record of records) {
+    const fields = Object.keys(record);
+    if (fields.some((field) => field === 'attributes' || !/^[A-Za-z][A-Za-z0-9_]*$/.test(field))) {
+      throw new Error('Import data contains an invalid Salesforce field name.');
+    }
+    const id = record.Id;
+    if (
+      operation !== 'insert' &&
+      (typeof id !== 'string' || !/^[A-Za-z0-9]{15}(?:[A-Za-z0-9]{3})?$/.test(id))
+    ) {
+      throw new Error(
+        `${operation === 'delete' ? 'Delete' : 'Update'} rows require a valid Salesforce Id.`,
+      );
+    }
+    if (operation === 'insert' && fields.includes('Id')) {
+      throw new Error('Create rows cannot include Salesforce record IDs.');
+    }
   }
 }

@@ -118,11 +118,28 @@ export interface OrgInfo {
   isSandbox: boolean;
   fiscalYearStartMonth?: number;
   apiVersion: string;
+  releaseName?: string;
+  latestApiVersion?: string;
   instanceUrl: string;
   username: string;
   displayName: string;
   limits: Record<string, OrgLimit>;
   apiUsage?: string;
+}
+
+export type ImportOperation = 'insert' | 'update' | 'delete';
+
+export interface ImportRecordError {
+  statusCode?: string;
+  message: string;
+  fields?: string[];
+}
+
+export interface ImportRecordResult {
+  id?: string;
+  success: boolean;
+  created?: boolean;
+  errors: ImportRecordError[];
 }
 
 export type ApiMode = 'rest' | 'tooling';
@@ -194,6 +211,18 @@ export type UiRequest =
         key: string;
         apex: string;
         requestId: string;
+        confirmedProduction: boolean;
+      };
+    }
+  | {
+      type: 'IMPORT_RECORDS';
+      payload: {
+        key: string;
+        objectApiName: string;
+        operation: ImportOperation;
+        records: Record<string, unknown>[];
+        requestId: string;
+        confirmedIrreversible: boolean;
         confirmedProduction: boolean;
       };
     }

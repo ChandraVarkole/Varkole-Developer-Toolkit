@@ -36,7 +36,7 @@ const MODULES: ModuleItem[] = [
   { id: 'org-info', label: 'Org Info', icon: '◎', available: true, group: 'Build' },
   { id: 'records', label: 'Record Inspector', icon: '▤', available: true, group: 'Build' },
   { id: 'export', label: 'Export', icon: '↓', available: true, group: 'Build' },
-  { id: 'import', label: 'Import Preview', icon: '↑', available: true, group: 'Build' },
+  { id: 'import', label: 'Import', icon: '↑', available: true, group: 'Build' },
   { id: 'coverage', label: 'Code Coverage', icon: '◔', available: true, group: 'Build' },
   { id: 'users', label: 'Users', icon: '♙', available: true, group: 'Admin' },
   { id: 'access', label: 'Access Assignments', icon: '⌾', available: true, group: 'Admin' },
@@ -139,7 +139,7 @@ export function WorkspaceApp() {
           >
             ⚙ AI Setup
           </button>
-          <span>Private Beta · v0.7.7</span>
+          <span>Private Beta · v0.7.8</span>
         </div>
       </aside>
 

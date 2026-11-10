@@ -100,6 +100,33 @@ export class SalesforceTransport {
     }
   }
 
+  async writeJson<T>(
+    method: 'POST' | 'PATCH' | 'DELETE',
+    path: string,
+    body?: unknown,
+    signal?: AbortSignal,
+  ): Promise<TransportResult<T>> {
+    const url = this.resolvePath(path);
+    const response = await this.fetchImpl(url, {
+      method,
+      credentials: 'omit',
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+        Accept: 'application/json',
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(signal ? { signal } : {}),
+    });
+    if (!response.ok) throw await mapSalesforceError(response);
+    const apiUsage = response.headers.get('Sforce-Limit-Info');
+    const text = await response.text();
+    return {
+      data: (text ? JSON.parse(text) : undefined) as T,
+      ...(apiUsage ? { apiUsage } : {}),
+    };
+  }
+
   private resolvePath(path: string): URL {
     const url = path.startsWith('https://')
       ? validateSalesforceUrl(path)

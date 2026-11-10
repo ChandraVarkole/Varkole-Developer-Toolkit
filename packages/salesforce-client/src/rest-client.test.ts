@@ -131,4 +131,113 @@ describe('SalesforceRestClient describe', () => {
     await expect(client.getReportResult('001000000000001AAA')).rejects.toThrow('report ID');
     await expect(client.getDashboardResult('001000000000001AAA')).rejects.toThrow('dashboard ID');
   });
+
+  it('creates, updates, and deletes records through composite collection endpoints', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () =>
+      Promise.resolve(
+        new Response(JSON.stringify([{ success: true, id: '001000000000001AAA', errors: [] }]), {
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    const client = new SalesforceRestClient({
+      transport: new SalesforceTransport({
+        instanceUrl: 'https://acme.my.salesforce.com',
+        accessToken: 'secret',
+        fetchImpl,
+      }),
+      apiVersion: '68.0',
+    });
+
+    await client.importRecords('Account', 'insert', [{ Name: 'New account' }]);
+    await client.importRecords('Account', 'update', [
+      { Id: '001000000000001AAA', Name: 'Updated account' },
+    ]);
+    await client.importRecords('Account', 'delete', [{ Id: '001000000000001AAA' }]);
+
+    const calls = fetchImpl.mock.calls.map(([input, request]) => ({
+      url: typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+      method: request?.method,
+      body: request?.body,
+    }));
+    expect(calls[0]).toMatchObject({
+      url: 'https://acme.my.salesforce.com/services/data/v68.0/composite/sobjects',
+      method: 'POST',
+    });
+    const insertBody = calls[0]?.body;
+    if (typeof insertBody !== 'string') throw new Error('Expected a JSON request body.');
+    expect(JSON.parse(insertBody)).toEqual({
+      allOrNone: false,
+      records: [{ attributes: { type: 'Account' }, Name: 'New account' }],
+    });
+    expect(calls[1]?.method).toBe('PATCH');
+    expect(calls[2]).toMatchObject({
+      url: 'https://acme.my.salesforce.com/services/data/v68.0/composite/sobjects?ids=001000000000001AAA&allOrNone=false',
+      method: 'DELETE',
+    });
+  });
+
+  it('adds the latest Salesforce release label and API version to org info', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation((input) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.endsWith('/services/data/')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify([
+              { label: "Winter '26", url: '/services/data/v65.0', version: '65.0' },
+              { label: "Spring '26", url: '/services/data/v66.0', version: '66.0' },
+            ]),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+      if (url.endsWith('/limits')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({}), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            totalSize: 1,
+            done: true,
+            records: [
+              {
+                Id: '00D000000000001AAA',
+                Name: 'Acme',
+                OrganizationType: 'Enterprise Edition',
+                InstanceName: 'NA1',
+                IsSandbox: false,
+              },
+            ],
+          }),
+          { headers: { 'Content-Type': 'application/json' } },
+        ),
+      );
+    });
+    const client = new SalesforceRestClient({
+      transport: new SalesforceTransport({
+        instanceUrl: 'https://acme.my.salesforce.com',
+        accessToken: 'secret',
+        fetchImpl,
+      }),
+      apiVersion: '65.0',
+    });
+
+    await expect(
+      client.orgInfo(
+        {
+          username: 'dev@example.com',
+          displayName: 'Developer',
+          instanceUrl: 'https://acme.my.salesforce.com',
+        },
+        '65.0',
+      ),
+    ).resolves.toMatchObject({
+      releaseName: "Spring '26",
+      latestApiVersion: '66.0',
+    });
+  });
 });

@@ -61,6 +61,11 @@ export function OrgInfoPage({ org }: { org?: OrgIdentity | undefined }) {
           <section className="detail-grid" aria-label="Organization details">
             <Detail label="Organization ID" value={info.id} mono />
             <Detail label="Instance" value={info.instanceName ?? 'Not returned'} />
+            <Detail label="Salesforce release" value={info.releaseName ?? 'Not returned'} />
+            <Detail
+              label="Latest API version"
+              value={info.latestApiVersion ? `v${info.latestApiVersion}` : 'Not returned'}
+            />
             <Detail label="Signed in as" value={info.displayName} />
             <Detail label="Username" value={info.username} mono />
             <Detail label="Instance URL" value={info.instanceUrl} mono />

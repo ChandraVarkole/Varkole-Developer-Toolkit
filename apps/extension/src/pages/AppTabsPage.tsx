@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import type { OrgIdentity, QueryPage, SalesforceTabInfo } from '@varkole/shared';
+import type { OrgIdentity, SalesforceTabInfo } from '@varkole/shared';
 import { sendMessage } from '../api';
-import { QueryResults } from '../components/QueryResults';
 import { EmptyState, InlineError } from '../components/Status';
 import { useAutoLoad } from '../useAutoLoad';
+import { salesforceTabUrl } from './app-tab-url';
 
 export function AppTabsPage({ org }: { org?: OrgIdentity | undefined }) {
-  const [result, setResult] = useState<QueryPage>();
+  const [tabs, setTabs] = useState<SalesforceTabInfo[]>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
 
@@ -14,21 +14,16 @@ export function AppTabsPage({ org }: { org?: OrgIdentity | undefined }) {
     if (!org) return;
     setLoading(true);
     setError(undefined);
-    const started = performance.now();
     try {
-      const tabs = await sendMessage<SalesforceTabInfo[]>({
+      const next = await sendMessage<SalesforceTabInfo[]>({
         type: 'GET_TABS',
         payload: { key: org.key },
       });
-      setResult({
-        totalSize: tabs.length,
-        done: true,
-        records: tabs.map((tab) => ({
-          Tab: tab.label,
-          Type: tab.custom ? 'Custom' : 'Standard',
-        })),
-        elapsedMs: Math.round(performance.now() - started),
-      });
+      setTabs(
+        [...next].sort((left, right) =>
+          left.label.localeCompare(right.label, undefined, { sensitivity: 'base', numeric: true }),
+        ),
+      );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Salesforce could not load tabs.');
     } finally {
@@ -60,12 +55,47 @@ export function AppTabsPage({ org }: { org?: OrgIdentity | undefined }) {
           disabled={loading}
           onClick={() => void load()}
         >
-          {loading ? 'Loading…' : result ? 'Refresh tabs' : 'Load tabs'}
+          {loading ? 'Loading…' : tabs ? 'Refresh tabs' : 'Load tabs'}
         </button>
       </header>
       <InlineError message={error} />
-      {result && (
-        <QueryResults result={result} pageNumber={1} modeLabel="REST Tabs" loading={loading} />
+      {tabs && tabs.length === 0 && (
+        <EmptyState
+          title="No tabs available"
+          description="Salesforce returned no accessible tabs."
+        />
+      )}
+      {tabs && tabs.length > 0 && (
+        <section className="section-card app-tabs-card">
+          <div className="app-tabs-grid" aria-label="Salesforce app navigation tabs">
+            {tabs.map((tab, index) => {
+              const href = salesforceTabUrl(org, tab);
+              return (
+                <div
+                  className="app-tab-row"
+                  key={`${tab.name ?? tab.sobjectName ?? tab.label}-${index}`}
+                >
+                  <div>
+                    <strong>{tab.label}</strong>
+                    <span>{tab.custom ? 'Custom tab' : 'Standard tab'}</span>
+                  </div>
+                  {href ? (
+                    <a
+                      className="button button-secondary"
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open tab <span aria-hidden="true">↗</span>
+                    </a>
+                  ) : (
+                    <span className="muted">No navigation URL</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
       )}
     </div>
   );
