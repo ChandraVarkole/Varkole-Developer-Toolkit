@@ -139,7 +139,7 @@ export function WorkspaceApp() {
           >
             ⚙ AI Setup
           </button>
-          <span>Private Beta · v0.7.6</span>
+          <span>Private Beta · v0.7.7</span>
         </div>
       </aside>
 

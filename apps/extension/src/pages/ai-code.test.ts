@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCodeDiscoveryQueries,
   buildCodeResourceQueries,
+  buildFlowInventoryQueries,
   cleanEvidenceCitations,
 } from './ai-code';
 
@@ -44,5 +45,12 @@ describe('AI code inspection', () => {
     expect(cleanEvidenceCitations('```js\n  const value = true; [E1]\n```')).toBe(
       '```js\n  const value = true;\n```',
     );
+  });
+
+  it('creates a bounded Tooling API inventory query when all Flow names are requested', () => {
+    expect(buildFlowInventoryQueries('Give me the names of all flows in the org')).toEqual([
+      expect.stringContaining('FROM FlowDefinition ORDER BY MasterLabel LIMIT 500'),
+    ]);
+    expect(buildFlowInventoryQueries('Help me design a flow')).toEqual([]);
   });
 });

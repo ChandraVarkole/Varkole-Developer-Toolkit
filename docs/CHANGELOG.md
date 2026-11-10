@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.7 — Flow inventory retrieval
+
+- Added a deterministic, permission-bound Tooling API query for requests to list accessible Flow
+  definitions, including flow labels, API names, descriptions, active/latest version references,
+  namespaces, and package state.
+- Required successful FlowDefinition evidence before a Flow inventory request can be treated as
+  grounded; unrelated records and permission evidence no longer satisfy the request.
+- Added Flow-specific answer guidance and regression coverage while keeping the operation strictly
+  read-only.
+
 ## 0.7.6 — Reliable simple record lookups
 
 - Added deterministic read-only SOQL for straightforward oldest, newest, list, and count questions

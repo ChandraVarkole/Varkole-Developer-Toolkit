@@ -96,6 +96,16 @@ export function buildCodeDiscoveryQueries(conversation: string): string[] {
   return queries.slice(0, 6);
 }
 
+export function buildFlowInventoryQueries(conversation: string): string[] {
+  const flowIntent = /\bflows?\b/i.test(conversation);
+  const inventoryIntent =
+    /\b(all|list|names?|inventory|show|which|what|available|active|inactive)\b/i.test(conversation);
+  if (!flowIntent || !inventoryIntent) return [];
+  return [
+    'SELECT Id, DeveloperName, MasterLabel, NamespacePrefix, Description, ActiveVersionId, LatestVersionId, ManageableState FROM FlowDefinition ORDER BY MasterLabel LIMIT 500',
+  ];
+}
+
 export function buildCodeResourceQueries(observations: AiQueryObservation[]): string[] {
   const lwcBundleIds = matchingIds(observations, 'LightningComponentBundle').slice(0, 5);
   const auraBundleIds = matchingIds(observations, 'AuraDefinitionBundle').slice(0, 5);

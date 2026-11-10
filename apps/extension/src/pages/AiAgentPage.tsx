@@ -16,6 +16,7 @@ import { EmptyState, InlineError } from '../components/Status';
 import {
   buildCodeDiscoveryQueries,
   buildCodeResourceQueries,
+  buildFlowInventoryQueries,
   cleanEvidenceCitations,
 } from './ai-code';
 import {
@@ -326,9 +327,17 @@ export function AiAgentPage({
         ]),
       ].slice(0, 8);
       const codeQueries = buildCodeDiscoveryQueries(lookupTranscript);
+      const flowQueries = buildFlowInventoryQueries(recentUserTranscript);
+      const toolingQueries = [...new Set([...flowQueries, ...codeQueries])];
+      const requiredObjects = [
+        ...new Set([
+          ...deterministicObjects,
+          ...flowQueries.map(mainQueryObject).filter((name): name is string => Boolean(name)),
+        ]),
+      ];
       let currentEvidence = [
         ...(await Promise.all(queries.map((query) => runAiQuery(org, query, 'rest')))),
-        ...(await Promise.all(codeQueries.map((query) => runAiQuery(org, query, 'tooling')))),
+        ...(await Promise.all(toolingQueries.map((query) => runAiQuery(org, query, 'tooling')))),
       ];
       const codeResourceQueries = buildCodeResourceQueries(currentEvidence);
       if (codeResourceQueries.length) {
@@ -376,7 +385,7 @@ export function AiAgentPage({
         ];
       }
 
-      if (shouldRequestDataGapPlan(recentUserTranscript, currentEvidence, deterministicObjects)) {
+      if (shouldRequestDataGapPlan(recentUserTranscript, currentEvidence, requiredObjects)) {
         setProgress('Closing Salesforce evidence gaps…');
         const gapPlanResponse = await sendMessage<string>({
           type: 'ASK_AI',
