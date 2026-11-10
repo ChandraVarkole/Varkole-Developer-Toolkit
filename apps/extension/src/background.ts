@@ -207,9 +207,13 @@ async function handleRequest(request: UiRequest): Promise<unknown> {
     }
     case 'QUERY_NEXT':
       return runAbortable(request.payload.requestId, (signal) =>
-        withRestClient(request.payload.key, (client) =>
-          client.queryNext(request.payload.nextRecordsUrl, signal),
-        ),
+        request.payload.mode === 'tooling'
+          ? withToolingClient(request.payload.key, (client) =>
+              client.queryNext(request.payload.nextRecordsUrl, signal),
+            )
+          : withRestClient(request.payload.key, (client) =>
+              client.queryNext(request.payload.nextRecordsUrl, signal),
+            ),
       );
     case 'CANCEL_REQUEST':
       activeRequests.get(request.payload.requestId)?.abort();

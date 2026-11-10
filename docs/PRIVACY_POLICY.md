@@ -18,7 +18,8 @@ Varkole may handle the following data only to provide user-requested features:
 
 - Salesforce session credentials, including the active `sid` cookie or OAuth fallback tokens.
 - Salesforce organization and user identity, object and field metadata, query results, records,
-  debug logs, code coverage, limits, tabs, and permission information accessible to the user.
+  accessible Apex and component source, debug logs, code coverage, limits, tabs, and permission
+  information accessible to the user.
 - SOQL query history saved by the user in the extension.
 - AI provider configuration, questions, recent conversation context, and relevant Salesforce data
   selected to answer an AI Agent question.
@@ -42,8 +43,8 @@ does not operate a server in this path.
 AI Agent is optional and uses a key supplied by the user. Before any Salesforce context is sent,
 Varkole displays an affirmative disclosure naming the selected provider and the categories of data
 that may be shared. If approved, questions, recent messages, org/current-user identity, relevant
-object and field metadata, and relevant query results or record values can be sent directly to the
-selected provider:
+object and field metadata, relevant query results or record values, and relevant accessible Apex or
+component source for code questions can be sent directly to the selected provider:
 
 - [OpenAI](https://openai.com/policies/privacy-policy/)
 - [Anthropic](https://www.anthropic.com/legal/privacy)

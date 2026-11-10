@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.5 — Read-only Apex and component inspection
+
+- Added permission-bound Salesforce Tooling API retrieval for local/unmanaged Apex classes,
+  triggers, Lightning web component bundles and resources, Aura bundles and definitions, and
+  Visualforce pages/components.
+- Added safe component-name discovery, bounded source retrieval, Tooling pagination, source
+  truncation disclosure, and explicit handling for no-match, permission, and protected-package
+  outcomes.
+- Kept code inspection strictly read-only; no AI-generated Apex, JavaScript, metadata changes, or
+  arbitrary API endpoints can execute.
+- Kept evidence IDs for internal grounding validation but removed `[E#]` markers before displaying
+  or copying an AI Agent response.
+
 ## 0.7.4 — Compact layout and logo correction
 
 - Fixed AI Agent horizontal overflow in the embedded Salesforce drawer, including the connection

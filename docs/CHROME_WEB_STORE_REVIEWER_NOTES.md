@@ -37,7 +37,9 @@ is requested only after the reviewer selects **Save & test**.
 4. Do not approve the disclosure; verify AI questions cannot be sent.
 5. Approve the checkbox and select **Approve and continue**. Ask a read-only org question and verify
    the answer is based on data accessible to the current Salesforce user.
-6. Select **Forget key** and verify the AI connection and consent are removed.
+6. Optionally ask about a named Apex class or Lightning component. Verify Varkole reads only source
+   returned by Salesforce's Tooling API for the current user and does not execute the code.
+7. Select **Forget key** and verify the AI connection and consent are removed.
 
 Provider keys and consent are stored only in trusted-context Chrome session storage. No AI provider
 key, Salesforce record value, query result, or AI answer is persisted in local or sync storage.

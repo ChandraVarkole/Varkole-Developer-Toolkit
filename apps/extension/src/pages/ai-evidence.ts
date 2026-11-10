@@ -137,7 +137,10 @@ export function mergeAiEvidence(
 ): AiQueryObservation[] {
   const byQuery = new Map<string, AiQueryObservation>();
   for (const observation of [...retained, ...current]) {
-    byQuery.set(observation.query.trim().toLowerCase(), observation);
+    byQuery.set(
+      `${observation.apiMode ?? 'rest'}:${observation.query.trim().toLowerCase()}`,
+      observation,
+    );
   }
   return [...byQuery.values()].slice(-limit);
 }

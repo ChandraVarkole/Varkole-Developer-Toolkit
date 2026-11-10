@@ -203,7 +203,7 @@ export type UiRequest =
     }
   | {
       type: 'QUERY_NEXT';
-      payload: { key: string; nextRecordsUrl: string; requestId: string };
+      payload: { key: string; nextRecordsUrl: string; requestId: string; mode?: ApiMode };
     }
   | { type: 'CANCEL_REQUEST'; payload: { requestId: string } };
 

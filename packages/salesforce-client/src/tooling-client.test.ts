@@ -49,3 +49,28 @@ describe('SalesforceToolingClient debug logs', () => {
     );
   });
 });
+
+describe('SalesforceToolingClient code query pagination', () => {
+  it('continues only through Tooling API query URLs', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ totalSize: 1, done: true, records: [] }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const client = new SalesforceToolingClient({
+      transport: new SalesforceTransport({
+        instanceUrl: 'https://acme.my.salesforce.com',
+        accessToken: 'secret-token',
+        fetchImpl,
+      }),
+      apiVersion: '68.0',
+    });
+
+    await expect(
+      client.queryNext('/services/data/v68.0/tooling/query/01g-next'),
+    ).resolves.toMatchObject({ done: true, records: [] });
+    await expect(client.queryNext('/services/data/v68.0/query/01g-next')).rejects.toThrow(
+      'Tooling pagination',
+    );
+  });
+});

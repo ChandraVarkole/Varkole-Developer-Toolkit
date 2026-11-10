@@ -14,6 +14,11 @@ import { providerOrigin } from '../ai-provider';
 import { MarkdownMessage } from '../components/MarkdownMessage';
 import { EmptyState, InlineError } from '../components/Status';
 import {
+  buildCodeDiscoveryQueries,
+  buildCodeResourceQueries,
+  cleanEvidenceCitations,
+} from './ai-code';
+import {
   buildAiPlanningContext,
   buildAutomaticAiContext,
   parseAiReadPlan,
@@ -299,7 +304,21 @@ export function AiAgentPage({
       const queries = [
         ...new Set([...accessQueries, ...pageQueries, ...analyticsQueries, ...plan.queries]),
       ].slice(0, 8);
-      let currentEvidence = await Promise.all(queries.map((query) => runAiQuery(org, query)));
+      const codeQueries = buildCodeDiscoveryQueries(lookupTranscript);
+      let currentEvidence = [
+        ...(await Promise.all(queries.map((query) => runAiQuery(org, query, 'rest')))),
+        ...(await Promise.all(codeQueries.map((query) => runAiQuery(org, query, 'tooling')))),
+      ];
+      const codeResourceQueries = buildCodeResourceQueries(currentEvidence);
+      if (codeResourceQueries.length) {
+        setProgress('Reading accessible Apex and component source…');
+        currentEvidence = [
+          ...currentEvidence,
+          ...(await Promise.all(
+            codeResourceQueries.map((query) => runAiQuery(org, query, 'tooling')),
+          )),
+        ];
+      }
 
       if (shouldRequestRelationshipGapPlan(lookupTranscript, currentEvidence)) {
         setProgress('Checking direct Salesforce relationships…');
@@ -424,7 +443,10 @@ export function AiAgentPage({
           );
         }
       }
-      const assistantMessage: AiChatMessage = { role: 'assistant', content: answer };
+      const assistantMessage: AiChatMessage = {
+        role: 'assistant',
+        content: cleanEvidenceCitations(answer),
+      };
       setMessages([...conversation, assistantMessage].slice(-20));
     } catch (cause) {
       setError(friendlyAiError(cause));
@@ -565,6 +587,7 @@ export function AiAgentPage({
               <li>Org and current-user identity</li>
               <li>Relevant object and field metadata</li>
               <li>Relevant query results and record values</li>
+              <li>Relevant accessible Apex or component source for code questions</li>
               <li>Recent messages needed to understand follow-up questions</li>
             </ul>
             <p>
@@ -788,7 +811,11 @@ function mergeDescribes(
   ];
 }
 
-async function runAiQuery(org: OrgIdentity, query: string): Promise<AiQueryObservation> {
+async function runAiQuery(
+  org: OrgIdentity,
+  query: string,
+  mode: 'rest' | 'tooling' = 'rest',
+): Promise<AiQueryObservation> {
   const maxRecords = 500;
   const maxPages = 3;
   const retrievedAt = new Date().toISOString();
@@ -799,7 +826,7 @@ async function runAiQuery(org: OrgIdentity, query: string): Promise<AiQueryObser
         payload: {
           key: org.key,
           soql: query,
-          mode: 'rest',
+          mode,
           requestId: crypto.randomUUID(),
         },
       }),
@@ -816,6 +843,7 @@ async function runAiQuery(org: OrgIdentity, query: string): Promise<AiQueryObser
             key: org.key,
             nextRecordsUrl: pages.at(-1)!.nextRecordsUrl!,
             requestId: crypto.randomUUID(),
+            mode,
           },
         }),
       );
@@ -825,17 +853,19 @@ async function runAiQuery(org: OrgIdentity, query: string): Promise<AiQueryObser
     const capped = Boolean(last.nextRecordsUrl) || totalRetrieved > maxRecords;
     return {
       query,
+      apiMode: mode,
       result: mergeQueryPages(pages, maxRecords),
       retrievedAt,
       pages: pages.length,
       capped,
-      relationships: relationshipEvidenceForQuery(query),
+      relationships: mode === 'rest' ? relationshipEvidenceForQuery(query) : [],
     };
   } catch (cause) {
     return {
       query,
+      apiMode: mode,
       retrievedAt,
-      relationships: relationshipEvidenceForQuery(query),
+      relationships: mode === 'rest' ? relationshipEvidenceForQuery(query) : [],
       error:
         cause instanceof Error
           ? cause.message
@@ -940,6 +970,7 @@ async function runAiAnalytics(
     );
     return {
       query,
+      apiMode: 'analytics',
       retrievedAt,
       pages: 1,
       capped: false,
@@ -954,6 +985,7 @@ async function runAiAnalytics(
   } catch (cause) {
     return {
       query,
+      apiMode: 'analytics',
       retrievedAt,
       relationships: [],
       error:

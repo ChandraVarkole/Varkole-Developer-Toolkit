@@ -31,6 +31,19 @@ export class SalesforceToolingClient {
     };
   }
 
+  async queryNext(nextRecordsUrl: string, signal?: AbortSignal): Promise<QueryPage> {
+    if (!nextRecordsUrl.includes('/tooling/query/')) {
+      throw new Error('Tooling pagination requires a Tooling API query URL.');
+    }
+    const started = performance.now();
+    const result = await this.transport.get<RawQueryResponse>(nextRecordsUrl, signal);
+    return {
+      ...result.data,
+      ...(result.apiUsage ? { apiUsage: result.apiUsage } : {}),
+      elapsedMs: Math.round(performance.now() - started),
+    };
+  }
+
   async executeAnonymous(apex: string, signal?: AbortSignal): Promise<ExecuteAnonymousResult> {
     if (!apex.trim()) throw new Error('Apex code cannot be empty.');
     const result = await this.transport.get<ExecuteAnonymousResult>(
