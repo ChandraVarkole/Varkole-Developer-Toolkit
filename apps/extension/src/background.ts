@@ -36,6 +36,7 @@ const SELECTED_ORG_KEY = 'selected-org-v1';
 const TOKEN_PREFIX = 'org-token-v1:';
 const AI_CONFIG_KEY = 'ai-provider-session-v1';
 const AI_DATA_CONSENT_KEY = 'ai-data-consent-v1';
+const AI_KEY_TTL_MS = 8 * 60 * 60 * 1_000;
 const LEGACY_AI_REMEMBERED_CONFIG_KEY = 'ai-provider-remembered-v1';
 const QUERY_HISTORY_PREFIX = 'soql-history-v1:';
 
@@ -140,6 +141,14 @@ async function handleRequest(request: UiRequest): Promise<unknown> {
     case 'GET_APEX_LOG_BODY':
       return withToolingClient(request.payload.key, (client) =>
         client.getApexLogBody(request.payload.logId),
+      );
+    case 'GET_REPORT_RESULT':
+      return withRestClient(request.payload.key, (client, _org, signal) =>
+        client.getReportResult(request.payload.reportId, signal),
+      );
+    case 'GET_DASHBOARD_RESULT':
+      return withRestClient(request.payload.key, (client, _org, signal) =>
+        client.getDashboardResult(request.payload.dashboardId, signal),
       );
     case 'GET_AI_STATUS':
       return getAiStatus();
@@ -757,6 +766,7 @@ async function configureAi(input: {
     apiKey: input.apiKey.trim() || (previous?.provider === input.provider ? previous.apiKey : ''),
     model: input.model.trim(),
     ...(input.region?.trim() ? { region: input.region.trim() } : {}),
+    expiresAt: new Date(Date.now() + AI_KEY_TTL_MS).toISOString(),
   };
   validateAiConfig(config);
   await requestAiResponse(
@@ -808,6 +818,10 @@ async function loadAiConfig(): Promise<AiSessionConfig | undefined> {
   const stored = await chrome.storage.session.get(AI_CONFIG_KEY);
   const config = stored[AI_CONFIG_KEY] as AiSessionConfig | undefined;
   if (!config) return undefined;
+  if (!config.expiresAt || Date.parse(config.expiresAt) <= Date.now()) {
+    await chrome.storage.session.remove([AI_CONFIG_KEY, AI_DATA_CONSENT_KEY]);
+    return undefined;
+  }
   try {
     validateAiConfig(config);
   } catch {

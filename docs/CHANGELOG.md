@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.7.3 — Org-aware AI and transparent launcher
+
+- Expanded AI Agent retrieval for natural-language records, aggregate calculations, reports,
+  dashboards, permissions, relationships, and org-specific Salesforce Flow guidance.
+- Added read-only Salesforce Reports and Dashboards REST API results, bounded by the current
+  user's session and Salesforce access.
+- Added verified current-page record context so questions about “this” record retrieve the active
+  Salesforce record and its relevant relationships instead of relying on assumptions.
+- Added a second evidence-gap planning pass, report/dashboard discovery, aggregate-query guidance,
+  effective-access guidance, safe Salesforce record links, and readable Markdown tables.
+- Added an AI accuracy disclaimer, character/context-limit guidance, Clear Chat capitalization,
+  automatic latest-message scrolling, and 8-hour browser-session key expiry.
+- Replaced the broken Settings route with AI Setup and made the popup gear open AI Agent.
+- Removed the logo's white canvas, regenerated transparent padded extension icons, and reduced the
+  floating Salesforce launcher to 42 px with a lighter transparent treatment.
+
+## 0.7.2 — Compact Salesforce launcher
+
+- Reduced the floating Salesforce-page launcher from 52 px to 44 px and tightened its border,
+  radius, page-edge spacing, and shadow without changing toolbar or in-app branding sizes.
+
 ## 0.7.1 — Grounded relationships and safer SOQL building
 
 - Made AI retrieval relationship-aware by loading relevant Salesforce Describe metadata before

@@ -89,4 +89,46 @@ describe('SalesforceRestClient describe', () => {
       { name: 'Zulu__c', label: 'Zulu__c' },
     ]);
   });
+
+  it('reads report and dashboard analytics through bounded read-only endpoints', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ ok: true }), {
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    const client = new SalesforceRestClient({
+      transport: new SalesforceTransport({
+        instanceUrl: 'https://acme.my.salesforce.com',
+        accessToken: 'secret',
+        fetchImpl,
+      }),
+      apiVersion: '68.0',
+    });
+
+    await client.getReportResult('00O000000000001AAA');
+    await client.getDashboardResult('01Z000000000001AAA');
+
+    const reportRequest = fetchImpl.mock.calls[0]?.[0];
+    const dashboardRequest = fetchImpl.mock.calls[1]?.[0];
+    const reportUrl =
+      typeof reportRequest === 'string'
+        ? reportRequest
+        : reportRequest instanceof URL
+          ? reportRequest.href
+          : reportRequest?.url;
+    const dashboardUrl =
+      typeof dashboardRequest === 'string'
+        ? dashboardRequest
+        : dashboardRequest instanceof URL
+          ? dashboardRequest.href
+          : dashboardRequest?.url;
+    expect(reportUrl).toContain(
+      '/services/data/v68.0/analytics/reports/00O000000000001AAA?includeDetails=true',
+    );
+    expect(dashboardUrl).toContain('/services/data/v68.0/analytics/dashboards/01Z000000000001AAA');
+    await expect(client.getReportResult('001000000000001AAA')).rejects.toThrow('report ID');
+    await expect(client.getDashboardResult('001000000000001AAA')).rejects.toThrow('dashboard ID');
+  });
 });

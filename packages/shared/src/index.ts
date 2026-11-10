@@ -159,6 +159,8 @@ export type UiRequest =
   | { type: 'DESCRIBE_OBJECT'; payload: { key: string; objectApiName: string } }
   | { type: 'GET_TABS'; payload: { key: string } }
   | { type: 'GET_APEX_LOG_BODY'; payload: { key: string; logId: string } }
+  | { type: 'GET_REPORT_RESULT'; payload: { key: string; reportId: string } }
+  | { type: 'GET_DASHBOARD_RESULT'; payload: { key: string; dashboardId: string } }
   | { type: 'GET_AI_STATUS' }
   | { type: 'GET_QUERY_HISTORY'; payload: { key: string } }
   | {

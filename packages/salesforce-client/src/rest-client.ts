@@ -197,6 +197,31 @@ export class SalesforceRestClient {
     }));
   }
 
+  async getReportResult(reportId: string, signal?: AbortSignal): Promise<Record<string, unknown>> {
+    if (!/^00O[A-Za-z0-9]{12}(?:[A-Za-z0-9]{3})?$/.test(reportId)) {
+      throw new Error('Enter a valid Salesforce report ID.');
+    }
+    const result = await this.transport.get<Record<string, unknown>>(
+      `${this.apiRoot}/analytics/reports/${encodeURIComponent(reportId)}?includeDetails=true`,
+      signal,
+    );
+    return result.data;
+  }
+
+  async getDashboardResult(
+    dashboardId: string,
+    signal?: AbortSignal,
+  ): Promise<Record<string, unknown>> {
+    if (!/^01Z[A-Za-z0-9]{12}(?:[A-Za-z0-9]{3})?$/.test(dashboardId)) {
+      throw new Error('Enter a valid Salesforce dashboard ID.');
+    }
+    const result = await this.transport.get<Record<string, unknown>>(
+      `${this.apiRoot}/analytics/dashboards/${encodeURIComponent(dashboardId)}`,
+      signal,
+    );
+    return result.data;
+  }
+
   async orgInfo(
     identity: { username: string; displayName: string; instanceUrl: string },
     apiVersion: string,

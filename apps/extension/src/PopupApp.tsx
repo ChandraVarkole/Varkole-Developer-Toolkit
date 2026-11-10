@@ -18,8 +18,8 @@ export function PopupApp() {
         <button
           className="icon-button"
           type="button"
-          onClick={() => openWorkspace('settings')}
-          aria-label="Settings"
+          onClick={() => openWorkspace('ai')}
+          aria-label="AI Agent setup"
         >
           ⚙
         </button>

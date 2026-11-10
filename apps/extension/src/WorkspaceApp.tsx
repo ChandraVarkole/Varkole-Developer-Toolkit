@@ -59,6 +59,7 @@ export function WorkspaceApp() {
   const { state, setState, error, loading } = useExtensionState();
   const [module, setModule] = useState(readHash());
   const [showConnect, setShowConnect] = useState(false);
+  const [aiSettingsRequest, setAiSettingsRequest] = useState(0);
 
   useEffect(() => {
     const update = () => setModule(readHash());
@@ -129,10 +130,16 @@ export function WorkspaceApp() {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <button type="button" onClick={() => navigate('settings')}>
-            ⚙ Settings
+          <button
+            type="button"
+            onClick={() => {
+              setAiSettingsRequest((current) => current + 1);
+              navigate('ai');
+            }}
+          >
+            ⚙ AI Setup
           </button>
-          <span>Private Beta · v0.7.1</span>
+          <span>Private Beta · v0.7.3</span>
         </div>
       </aside>
 
@@ -233,6 +240,8 @@ export function WorkspaceApp() {
             <AiAgentPage
               key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}`}
               org={selectedOrg}
+              currentRecordId={currentRecordId}
+              settingsRequest={aiSettingsRequest}
             />
           ) : activeModule.id === 'settings' ? (
             <SettingsPage

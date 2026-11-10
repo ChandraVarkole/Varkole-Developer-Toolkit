@@ -26,8 +26,12 @@ import {
   relatedDescribeNames,
   relationshipEvidenceForQuery,
   selectRelevantAiObjects,
+  shouldRequestDataGapPlan,
   shouldRequestRelationshipGapPlan,
 } from './ai-evidence';
+
+const MAX_CHAT_MESSAGES = 18;
+const MAX_PROMPT_CHARACTERS = 7_000;
 
 const PROVIDERS: {
   id: AiProvider;
@@ -69,7 +73,15 @@ const orgFoundationCache = new Map<
 const describeCache = new Map<string, Promise<SalesforceObjectDescribe>>();
 const transientEvidenceByOrg = new Map<string, AiQueryObservation[]>();
 
-export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
+export function AiAgentPage({
+  org,
+  currentRecordId,
+  settingsRequest = 0,
+}: {
+  org?: OrgIdentity | undefined;
+  currentRecordId?: string | undefined;
+  settingsRequest?: number;
+}) {
   const [status, setStatus] = useState<AiConnectionStatus>({ configured: false });
   const [statusLoaded, setStatusLoaded] = useState(false);
   const [showConnection, setShowConnection] = useState(false);
@@ -105,6 +117,10 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
       })
       .finally(() => setStatusLoaded(true));
   }, []);
+
+  useEffect(() => {
+    if (settingsRequest > 0) setShowConnection(true);
+  }, [settingsRequest]);
 
   useEffect(() => {
     const thread = threadRef.current;
@@ -192,6 +208,18 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
   async function askAgent() {
     const question = prompt.trim();
     if (!question || !org || !status.configured || !status.dataConsentGranted || asking) return;
+    if (messages.length >= MAX_CHAT_MESSAGES) {
+      setError(
+        'This chat has reached its context limit. Click Clear Chat and start a new chat, then ask a narrower question.',
+      );
+      return;
+    }
+    if (question.length > MAX_PROMPT_CHARACTERS) {
+      setError(
+        `This question is over the ${MAX_PROMPT_CHARACTERS.toLocaleString()}-character limit. Shorten it, or click Clear Chat and start a focused chat.`,
+      );
+      return;
+    }
     const userMessage: AiChatMessage = { role: 'user', content: question };
     const conversation = [...messages, userMessage].slice(-19);
     const planningTranscript = conversation
@@ -210,9 +238,24 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
     try {
       setProgress('Reading your accessible org metadata…');
       const { objects, orgInfo } = await loadOrgFoundation(org);
+      const currentRecordObject = currentRecordId
+        ? objects.find((object) => object.keyPrefix === currentRecordId.slice(0, 3))
+        : undefined;
+      const pageContextRequested = /\b(this|current|record|it|summarize|related|page)\b/i.test(
+        planningTranscript,
+      );
+      const lookupTranscript =
+        currentRecordObject && pageContextRequested
+          ? `${planningTranscript}\nPage context verified by Varkole: the current Salesforce page is ${currentRecordObject.label} (${currentRecordObject.name}) record ${currentRecordId}.`
+          : planningTranscript;
 
       const retainedEvidence = transientEvidenceByOrg.get(org.key) ?? [];
-      const seedNames = selectRelevantAiObjects(objects, planningTranscript);
+      const seedNames = [
+        ...new Set([
+          ...selectRelevantAiObjects(objects, lookupTranscript),
+          ...(currentRecordObject && pageContextRequested ? [currentRecordObject.name] : []),
+        ]),
+      ].slice(0, 5);
       const seedDescribes = await loadDescribes(org, seedNames);
       const planningDescribeNames = relatedDescribeNames(seedDescribes, objects, seedNames, 6);
       let describes = await loadDescribes(org, planningDescribeNames);
@@ -224,13 +267,13 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
           messages: [
             {
               role: 'user',
-              content: `Create the minimum read-only Salesforce retrieval plan needed for the latest request, using the full conversation for references and follow-ups:\n${planningTranscript}`,
+              content: `Create the minimum read-only Salesforce retrieval plan needed for the latest request, using the full conversation and verified page context for references and follow-ups:\n${lookupTranscript}`,
             },
           ],
           salesforceContext: buildAiPlanningContext(
             org,
             objects,
-            planningTranscript,
+            lookupTranscript,
             describes,
             retainedEvidence,
             userTranscript,
@@ -243,14 +286,22 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
       setProgress('Running permitted Salesforce lookups…');
       describes = mergeDescribes(describes, await loadDescribes(org, plan.objects));
       const accessQueries = /\b(access|permission|profile|admin|privilege|authoriz)/i.test(
-        planningTranscript,
+        lookupTranscript,
       )
         ? currentUserAccessQueries(org.userId)
         : [];
-      const queries = [...new Set([...accessQueries, ...plan.queries])].slice(0, 8);
+      const analyticsQueries = analyticsDiscoveryQueries(lookupTranscript);
+      const pageQueries = currentRecordQueries(
+        currentRecordId,
+        currentRecordObject?.name,
+        planningTranscript,
+      );
+      const queries = [
+        ...new Set([...accessQueries, ...pageQueries, ...analyticsQueries, ...plan.queries]),
+      ].slice(0, 8);
       let currentEvidence = await Promise.all(queries.map((query) => runAiQuery(org, query)));
 
-      if (shouldRequestRelationshipGapPlan(planningTranscript, currentEvidence)) {
+      if (shouldRequestRelationshipGapPlan(lookupTranscript, currentEvidence)) {
         setProgress('Checking direct Salesforce relationships…');
         const gapPlanResponse = await sendMessage<string>({
           type: 'ASK_AI',
@@ -265,7 +316,7 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
             salesforceContext: buildAiPlanningContext(
               org,
               objects,
-              planningTranscript,
+              lookupTranscript,
               describes,
               mergeAiEvidence(retainedEvidence, currentEvidence),
               userTranscript,
@@ -285,6 +336,49 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
         ];
       }
 
+      if (shouldRequestDataGapPlan(lookupTranscript, currentEvidence)) {
+        setProgress('Closing Salesforce evidence gaps…');
+        const gapPlanResponse = await sendMessage<string>({
+          type: 'ASK_AI',
+          payload: {
+            messages: [
+              {
+                role: 'user',
+                content:
+                  'Return only the additional read-only Salesforce plan required to answer the latest data question completely. Do not repeat completed queries. Use aggregate SOQL for calculations, Report or Dashboard for analytics discovery, and exact object/field names from the supplied schemas.',
+              },
+            ],
+            salesforceContext: buildAiPlanningContext(
+              org,
+              objects,
+              lookupTranscript,
+              describes,
+              mergeAiEvidence(retainedEvidence, currentEvidence),
+              userTranscript,
+            ),
+            maxOutputTokens: 700,
+          },
+        });
+        const gapPlan = parseAiReadPlan(gapPlanResponse, objects);
+        describes = mergeDescribes(describes, await loadDescribes(org, gapPlan.objects));
+        const completed = new Set(currentEvidence.map((item) => item.query.toLowerCase()));
+        const gapQueries = gapPlan.queries
+          .filter((query) => !completed.has(query.toLowerCase()))
+          .slice(0, Math.max(0, 10 - currentEvidence.length));
+        currentEvidence = [
+          ...currentEvidence,
+          ...(await Promise.all(gapQueries.map((query) => runAiQuery(org, query)))),
+        ];
+      }
+
+      if (shouldLoadAnalyticsResults(lookupTranscript)) {
+        setProgress('Reading accessible report and dashboard results…');
+        currentEvidence = [
+          ...currentEvidence,
+          ...(await loadAnalyticsEvidence(org, currentEvidence, lookupTranscript)),
+        ];
+      }
+
       const evidence = mergeAiEvidence(retainedEvidence, currentEvidence);
       transientEvidenceByOrg.set(org.key, evidence);
 
@@ -295,7 +389,7 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
         objects,
         describes,
         observations: evidence,
-        focus: planningTranscript,
+        focus: lookupTranscript,
         userFocus: userTranscript,
       });
       let answer = await sendMessage<string>({
@@ -333,7 +427,7 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
       const assistantMessage: AiChatMessage = { role: 'assistant', content: answer };
       setMessages([...conversation, assistantMessage].slice(-20));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'AI Agent could not answer.');
+      setError(friendlyAiError(cause));
     } finally {
       setProgress('');
       setAsking(false);
@@ -362,7 +456,7 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
             <span>Connected</span>
             <strong>{PROVIDERS.find((item) => item.id === status.provider)?.label}</strong>
             <code>{status.model}</code>
-            <small>Key kept only for this browser session</small>
+            <small>Key kept for up to 8 hours in this browser session</small>
             <button type="button" onClick={() => setShowConnection((current) => !current)}>
               {showConnection ? 'Hide settings' : 'Change'}
             </button>
@@ -377,7 +471,7 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
           <div className="section-title">
             <div>
               <h2>{status.configured ? 'Provider settings' : 'Connect your model'}</h2>
-              <p>The key is kept only in temporary browser-session storage.</p>
+              <p>The key is kept in temporary browser-session storage for up to 8 hours.</p>
             </div>
             {status.configured && (
               <button
@@ -517,9 +611,10 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
                 onClick={() => {
                   setMessages([]);
                   transientEvidenceByOrg.delete(org.key);
+                  setError(undefined);
                 }}
               >
-                Clear chat
+                Clear Chat
               </button>
             )}
           </div>
@@ -527,8 +622,8 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
             <div className="ai-starters">
               {[
                 'Summarize this org and flag anything I should review.',
-                'Which custom objects can I access and what are they for?',
-                'Review recent records for likely data quality issues.',
+                'Show the reports and dashboards I can access, then explain the most relevant one.',
+                'Help me design a Flow using the real fields on an object in this org.',
               ].map((starter) => (
                 <button key={starter} type="button" onClick={() => setPrompt(starter)}>
                   {starter}
@@ -551,7 +646,10 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
                     )}
                   </div>
                   {message.role === 'assistant' ? (
-                    <MarkdownMessage content={message.content} />
+                    <MarkdownMessage
+                      content={message.content}
+                      allowedOrigin={new URL(org.instanceUrl).origin}
+                    />
                   ) : (
                     <p>{message.content}</p>
                   )}
@@ -602,12 +700,24 @@ export function AiAgentPage({ org }: { org?: OrgIdentity | undefined }) {
               {asking ? 'Working…' : 'Ask AI Agent'}
             </button>
           </div>
+          <div className="ai-composer-meta">
+            <span>
+              {prompt.length.toLocaleString()} / {MAX_PROMPT_CHARACTERS.toLocaleString()} characters
+            </span>
+            {messages.length >= MAX_CHAT_MESSAGES - 2 && (
+              <strong>This chat is nearly full. Use Clear Chat before starting a new topic.</strong>
+            )}
+          </div>
           {!status.configured && (
             <p className="muted ai-chat-note">Connect a provider once to start asking questions.</p>
           )}
           <p className="muted ai-chat-note">
             Answers are not stored. Relevant accessible results are sent directly to your selected
             provider; AI Agent cannot write records or run Apex.
+          </p>
+          <p className="muted ai-chat-note ai-disclaimer">
+            AI can make mistakes. Verify important Salesforce data, calculations, and
+            recommendations before taking action.
           </p>
         </section>
       )}
@@ -747,4 +857,121 @@ function currentUserAccessQueries(userId: string): string[] {
     `PermissionSet.PermissionsManageUsers, PermissionSet.PermissionsCustomizeApplication ` +
     `FROM PermissionSetAssignment WHERE AssigneeId = '${userId}' LIMIT 20`;
   return [userQuery, assignmentsQuery];
+}
+
+function analyticsDiscoveryQueries(conversation: string): string[] {
+  const queries: string[] = [];
+  if (/\breports?\b/i.test(conversation)) {
+    queries.push('SELECT FIELDS(STANDARD) FROM Report LIMIT 100');
+  }
+  if (/\bdashboards?\b/i.test(conversation)) {
+    queries.push('SELECT FIELDS(STANDARD) FROM Dashboard LIMIT 100');
+  }
+  return queries;
+}
+
+function currentRecordQueries(
+  recordId: string | undefined,
+  objectApiName: string | undefined,
+  conversation: string,
+): string[] {
+  if (
+    !recordId ||
+    !objectApiName ||
+    !/^[A-Za-z0-9]{15}(?:[A-Za-z0-9]{3})?$/.test(recordId) ||
+    !/\b(this|current|record|it|summarize|related|page)\b/i.test(conversation)
+  ) {
+    return [];
+  }
+  return [`SELECT FIELDS(STANDARD) FROM ${objectApiName} WHERE Id = '${recordId}' LIMIT 1`];
+}
+
+function shouldLoadAnalyticsResults(conversation: string): boolean {
+  return (
+    /\b(reports?|dashboards?)\b/i.test(conversation) &&
+    /\b(analy[sz]e|explain|run|results?|data|details?|metrics?|summary|summarize|calculate|insights?)\b/i.test(
+      conversation,
+    )
+  );
+}
+
+async function loadAnalyticsEvidence(
+  org: OrgIdentity,
+  observations: AiQueryObservation[],
+  conversation: string,
+): Promise<AiQueryObservation[]> {
+  const candidates = observations
+    .flatMap((observation) => observation.result?.records ?? [])
+    .flatMap((record) => {
+      const id = typeof record.Id === 'string' ? record.Id : '';
+      const kind: 'report' | 'dashboard' | undefined = id.startsWith('00O')
+        ? 'report'
+        : id.startsWith('01Z')
+          ? 'dashboard'
+          : undefined;
+      if (!kind) return [];
+      const label = [record.Name, record.Title, record.DeveloperName]
+        .filter((value): value is string => typeof value === 'string')
+        .join(' ');
+      const score = label && conversation.toLowerCase().includes(label.toLowerCase()) ? 10 : 0;
+      return [{ id, kind, label, score }];
+    })
+    .filter((candidate, index, all) => all.findIndex((item) => item.id === candidate.id) === index)
+    .sort((left, right) => right.score - left.score || left.label.localeCompare(right.label))
+    .slice(0, 2);
+  return Promise.all(
+    candidates.map((candidate) => runAiAnalytics(org, candidate.kind, candidate.id)),
+  );
+}
+
+async function runAiAnalytics(
+  org: OrgIdentity,
+  kind: 'report' | 'dashboard',
+  id: string,
+): Promise<AiQueryObservation> {
+  const retrievedAt = new Date().toISOString();
+  const started = performance.now();
+  const query = `ANALYTICS ${kind.toUpperCase()} ${id}`;
+  try {
+    const data = await sendMessage<Record<string, unknown>>(
+      kind === 'report'
+        ? { type: 'GET_REPORT_RESULT', payload: { key: org.key, reportId: id } }
+        : { type: 'GET_DASHBOARD_RESULT', payload: { key: org.key, dashboardId: id } },
+    );
+    return {
+      query,
+      retrievedAt,
+      pages: 1,
+      capped: false,
+      relationships: [],
+      result: {
+        totalSize: 1,
+        done: true,
+        records: [{ analyticsType: kind, resourceId: id, ...data }],
+        elapsedMs: Math.round(performance.now() - started),
+      },
+    };
+  } catch (cause) {
+    return {
+      query,
+      retrievedAt,
+      relationships: [],
+      error:
+        cause instanceof Error
+          ? cause.message
+          : `Salesforce could not read this ${kind} with the current user's access.`,
+    };
+  }
+}
+
+function friendlyAiError(cause: unknown): string {
+  const message = cause instanceof Error ? cause.message : 'AI Agent could not answer.';
+  if (
+    /(?:context|token|message).*(?:limit|length|large|maximum)|(?:too large|under 8,000|between 1 and 20)/i.test(
+      message,
+    )
+  ) {
+    return 'This chat has reached the model context limit. Click Clear Chat and start a new chat, then ask a narrower question.';
+  }
+  return message;
 }

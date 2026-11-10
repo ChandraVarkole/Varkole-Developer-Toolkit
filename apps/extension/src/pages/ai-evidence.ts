@@ -16,10 +16,13 @@ export function selectRelevantAiObjects(
     .filter((object) => object.queryable)
     .map((object) => ({
       object,
-      score: terms.reduce((score, term) => {
-        const name = `${object.label} ${object.name}`.toLowerCase();
-        return score + (name.includes(term) ? 1 : 0);
-      }, 0),
+      score: terms.reduce(
+        (score, term) => {
+          const name = `${object.label} ${object.name}`.toLowerCase();
+          return score + (name.includes(term) ? 1 : 0);
+        },
+        intentObjectScore(object, conversation),
+      ),
     }))
     .filter((candidate) => candidate.score > 0)
     .sort(
@@ -28,6 +31,24 @@ export function selectRelevantAiObjects(
     )
     .slice(0, limit)
     .map(({ object }) => object.name);
+}
+
+function intentObjectScore(object: SalesforceObjectSummary, conversation: string): number {
+  const name = object.name.toLowerCase();
+  let score = 0;
+  if (/\b(reports?|reporting)\b/i.test(conversation) && name === 'report') score += 8;
+  if (/\b(dashboards?|charts?|metrics?)\b/i.test(conversation) && name === 'dashboard') score += 8;
+  if (
+    /\b(flows?|automation|record-triggered|screen flow)\b/i.test(conversation) &&
+    name.includes('flow')
+  ) {
+    score += 7;
+  }
+  if (/\b(permission|access|profile|privilege)\b/i.test(conversation)) {
+    if (name === 'permissionsetassignment' || name === 'permissionset' || name === 'user')
+      score += 6;
+  }
+  return score;
 }
 
 export function relatedDescribeNames(
@@ -86,6 +107,27 @@ export function shouldRequestRelationshipGapPlan(
   return !observations.some(
     (observation) => relationshipEvidenceForQuery(observation.query).length > 1,
   );
+}
+
+export function shouldRequestDataGapPlan(
+  conversation: string,
+  observations: AiQueryObservation[],
+): boolean {
+  const queries = observations.map((observation) => observation.query).join('\n');
+  const successful = observations.filter((observation) => observation.result && !observation.error);
+  const dataIntent =
+    /\b(show|list|find|get|retrieve|query|records?|rows?|who|which users?|how many|count|sum|average|avg|minimum|maximum|total)\b/i.test(
+      conversation,
+    ) ||
+    /\b(reports?|dashboards?|permissions?|profiles?|access assignments?)\b/i.test(conversation);
+  if (!dataIntent) return false;
+  if (observations.length === 0 || successful.length === 0) return true;
+  if (/\breports?\b/i.test(conversation) && !/\bFROM\s+Report\b/i.test(queries)) return true;
+  if (/\bdashboards?\b/i.test(conversation) && !/\bFROM\s+Dashboard\b/i.test(queries)) return true;
+  if (/\b(how many|count|sum|average|avg|minimum|maximum|total)\b/i.test(conversation)) {
+    return !/\b(COUNT|SUM|AVG|MIN|MAX)\s*\(/i.test(queries);
+  }
+  return false;
 }
 
 export function mergeAiEvidence(

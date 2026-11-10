@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Varkole Developer Toolkit BETA",
   "short_name": "Varkole BETA",
-  "version": "0.7.1",
+  "version": "0.7.3",
   "description": "THIS EXTENSION IS FOR BETA TESTING. Salesforce developer utilities using your current signed-in browser session.",
   "minimum_chrome_version": "114",
   "action": {
@@ -41,7 +41,7 @@
   "side_panel": {
     "default_path": "sidepanel.html"
   },
-  "options_page": "workspace.html#settings",
+  "options_page": "workspace.html#ai",
   "permissions": ["activeTab", "cookies", "identity", "storage", "sidePanel"],
   "host_permissions": [
     "https://*.salesforce.com/*",

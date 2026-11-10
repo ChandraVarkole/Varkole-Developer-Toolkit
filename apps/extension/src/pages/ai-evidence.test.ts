@@ -4,6 +4,8 @@ import {
   evidenceAnswerIssue,
   mergeQueryPages,
   relationshipEvidenceForQuery,
+  selectRelevantAiObjects,
+  shouldRequestDataGapPlan,
   shouldRequestRelationshipGapPlan,
 } from './ai-evidence';
 
@@ -87,6 +89,37 @@ describe('AI Salesforce evidence', () => {
         "SELECT CaseNumber, ContactId, Contact.Name, Account.Name FROM Case WHERE ContactId = '003x'",
       ),
     ).toEqual(['Case', 'Case.ContactId', 'Case.Contact', 'Case.Account']);
+  });
+
+  it('requests another plan when record or aggregate evidence is missing', () => {
+    expect(shouldRequestDataGapPlan('Show me recent Accounts', [])).toBe(true);
+    expect(
+      shouldRequestDataGapPlan('How many Accounts are active?', [
+        { query: 'SELECT Id FROM Account LIMIT 20', result: page([{ Id: '001x' }]) },
+      ]),
+    ).toBe(true);
+    expect(
+      shouldRequestDataGapPlan('How many Accounts are active?', [
+        { query: 'SELECT COUNT() total FROM Account LIMIT 20', result: page([{ total: 12 }]) },
+      ]),
+    ).toBe(false);
+  });
+
+  it('prioritizes report, dashboard, flow, and permission objects from user intent', () => {
+    const objects = [
+      'Account',
+      'Report',
+      'Dashboard',
+      'FlowDefinitionView',
+      'PermissionSetAssignment',
+    ].map((name) => ({ name, label: name, custom: false, queryable: true, searchable: true }));
+    expect(selectRelevantAiObjects(objects, 'Analyze a report and dashboard', 2)).toEqual([
+      'Dashboard',
+      'Report',
+    ]);
+    expect(selectRelevantAiObjects(objects, 'Help me design a flow', 1)).toEqual([
+      'FlowDefinitionView',
+    ]);
   });
 });
 
