@@ -87,14 +87,17 @@ function sendCurrentRecordContext() {
 const PANEL_STYLES = `
   :host { all: initial; --varkole-drawer-width: clamp(660px, 54vw, 980px); }
   .launcher {
-    position: fixed; z-index: 2147483646; right: 14px; top: 52%;
-    width: 42px; height: 42px; padding: 4px; overflow: visible;
-    border: 0; border-radius: 13px;
-    background: transparent; box-shadow: 0 7px 18px rgba(3,16,48,.22);
+    all: unset; position: fixed; z-index: 2147483646; right: 14px; top: 52%;
+    box-sizing: border-box; width: 34px; height: 34px; display: grid; place-items: center;
+    padding: 0; overflow: visible; border: 0; border-radius: 0;
+    appearance: none; -webkit-appearance: none; background: transparent !important; box-shadow: none;
     cursor: pointer; transition: transform .18s ease, opacity .18s ease, right .24s ease;
   }
   .launcher:hover { transform: translateY(-2px) scale(1.03); }
-  .launcher img { display: block; width: 100%; height: 100%; object-fit: contain; }
+  .launcher img {
+    display: block; width: 34px; height: 34px; object-fit: contain;
+    filter: drop-shadow(0 5px 8px rgba(3,16,48,.28));
+  }
   .panel {
     position: fixed; z-index: 2147483647; inset: 0 0 0 auto;
     width: var(--varkole-drawer-width); min-width: 0; height: 100vh;

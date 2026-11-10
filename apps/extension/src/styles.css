@@ -106,10 +106,10 @@ code,
   gap: 11px;
 }
 .brand-logo {
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
-  box-shadow: 0 6px 14px rgb(0 0 0 / 18%);
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 7px rgb(0 8 35 / 28%));
 }
 .brand strong {
   display: block;
@@ -490,8 +490,8 @@ code,
   gap: 8px;
 }
 .embedded .sidebar-brand .brand-logo {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
 }
 .embedded .sidebar-brand .brand strong {
   font-size: 15px;
@@ -570,12 +570,15 @@ code,
 .embedded .workspace-main {
   min-width: 0;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 .embedded .topbar {
   position: sticky;
+  grid-template-columns: minmax(0, 1fr) auto;
   min-height: 58px;
   padding: 7px 14px;
   gap: 8px;
+  overflow: hidden;
 }
 .embedded .org-selector-wrap,
 .embedded .org-selector-row {
@@ -589,6 +592,7 @@ code,
   text-overflow: ellipsis;
 }
 .embedded .topbar-actions {
+  min-width: 0;
   gap: 5px;
 }
 .embedded .workspace-content {
@@ -2776,6 +2780,7 @@ tbody tr:hover td {
   color: transparent;
 }
 .ai-connected-badge {
+  max-width: 100%;
   min-width: 220px;
   display: grid;
   gap: 3px;
@@ -2801,6 +2806,7 @@ tbody tr:hover td {
 .ai-connected-badge small {
   color: #39745d;
   font-size: 9px;
+  overflow-wrap: anywhere;
 }
 .ai-connected-badge button {
   justify-self: start;
@@ -3060,9 +3066,11 @@ tbody tr:hover td {
   white-space: pre-wrap;
 }
 .ai-markdown {
+  min-width: 0;
   color: #17233d;
   font-size: 12px;
   line-height: 1.65;
+  overflow-wrap: anywhere;
 }
 .ai-markdown > *:first-child {
   margin-top: 0;
@@ -3115,6 +3123,7 @@ tbody tr:hover td {
     0.92em/1.5 'SFMono-Regular',
     Consolas,
     monospace;
+  overflow-wrap: anywhere;
 }
 .ai-markdown pre {
   max-height: 320px;
@@ -3264,6 +3273,32 @@ tbody tr:hover td {
   .ai-key-field {
     grid-column: 1 / -1;
   }
+}
+
+.embedded .ai-agent-header {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 10px;
+}
+.embedded .ai-connected-badge {
+  width: 100%;
+  min-width: 0;
+}
+.embedded .ai-chat-primary .section-title {
+  align-items: flex-start;
+  gap: 10px;
+}
+.embedded .ai-chat-primary .section-title > div {
+  min-width: 0;
+}
+.embedded .ai-chat-primary .section-title .button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.embedded .ai-thread,
+.embedded .ai-message {
+  min-width: 0;
+  max-width: 100%;
 }
 
 @media (max-width: 650px) {

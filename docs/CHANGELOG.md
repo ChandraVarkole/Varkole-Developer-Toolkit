@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.4 — Compact layout and logo correction
+
+- Fixed AI Agent horizontal overflow in the embedded Salesforce drawer, including the connection
+  badge, Clear Chat action, messages, tables, and long API names.
+- Corrected the compact top bar to constrain long organization names and keep record/actions inside
+  the drawer.
+- Increased the visible cloud/V artwork inside extension icons and removed the rectangular shadow
+  around the transparent in-app logo.
+- Rebuilt the floating launcher as a 34 px borderless transparent control with an alpha-aware icon
+  shadow, removing the white rounded button surface shown over Salesforce pages.
+
 ## 0.7.3 — Org-aware AI and transparent launcher
 
 - Expanded AI Agent retrieval for natural-language records, aggregate calculations, reports,
