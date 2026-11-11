@@ -24,9 +24,9 @@ An `.env` file is not required for normal browser-session use. To enable the OAu
 
 Load `apps/extension/dist` from `chrome://extensions` using **Load unpacked**. Always keep this same
 stable folder as the owner-development installation—do not load a version-numbered beta release
-folder. After future builds, select **Reload latest build** in Varkole (or **Reload** in
-`chrome://extensions`) and refresh open Salesforce tabs once. Chrome reloads only the exact folder
-that was originally selected; it cannot switch an unpacked installation to a newer versioned folder.
+folder. After future builds, select **Reload** for Varkole in `chrome://extensions` and refresh open
+Salesforce tabs once. Chrome reloads only the exact folder that was originally selected; it cannot
+switch an unpacked installation to a newer versioned folder.
 
 Pin the extension, open a signed-in Salesforce tab, refresh that tab once after installation, and
 click Varkole. A compact right-side drawer with vertical navigation opens over Salesforce and

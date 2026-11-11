@@ -29,9 +29,9 @@ Loading each version from a different path can create a separate unpacked extens
 reset extension-scoped settings.
 
 The repository owner should instead load the stable `apps/extension/dist` folder once. Running
-`npm run build` updates that same folder, after which **Reload latest build** inside Varkole reloads
-the files. Version-numbered beta folders are immutable tester snapshots and must not be used as the
-owner's development installation.
+`npm run build` updates that same folder; then use **Reload** for Varkole in
+`chrome://extensions`. Version-numbered beta folders are immutable tester snapshots and must not be
+used as the owner's development installation.
 
 ## AI Agent testing
 

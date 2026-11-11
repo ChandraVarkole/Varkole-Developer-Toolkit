@@ -20,7 +20,7 @@ import { READ_ONLY_MODULES } from './pages/read-only-modules';
 import { RunApexPage } from './pages/RunApexPage';
 import { SoqlPage } from './pages/SoqlPage';
 import { orgName } from './org';
-import { openWorkspace, reloadExtension } from './api';
+import { openWorkspace } from './api';
 
 interface ModuleItem {
   id: string;
@@ -64,7 +64,6 @@ export function WorkspaceApp() {
   const { state, setState, error, loading } = useExtensionState();
   const [module, setModule] = useState(readHash());
   const [showConnect, setShowConnect] = useState(false);
-  const [aiSettingsRequest, setAiSettingsRequest] = useState(0);
 
   useEffect(() => {
     const update = () => setModule(readHash());
@@ -134,33 +133,6 @@ export function WorkspaceApp() {
             </div>
           ))}
         </nav>
-        <div className="sidebar-footer">
-          <button
-            type="button"
-            onClick={() => {
-              setAiSettingsRequest((current) => current + 1);
-              navigate('ai');
-            }}
-          >
-            ⚙ AI Setup
-          </button>
-          <button
-            type="button"
-            title="Reload files from the folder Chrome originally loaded"
-            onClick={() => {
-              if (
-                window.confirm(
-                  'Reload Varkole from its installed folder? Unsaved screen state and the temporary AI key will be cleared. Refresh open Salesforce tabs afterward.',
-                )
-              ) {
-                reloadExtension();
-              }
-            }}
-          >
-            ↻ Reload latest build
-          </button>
-          <span>Private Beta · v0.7.14</span>
-        </div>
       </aside>
 
       <main className="workspace-main">
@@ -271,7 +243,6 @@ export function WorkspaceApp() {
               key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}`}
               org={selectedOrg}
               currentRecordId={currentRecordId}
-              settingsRequest={aiSettingsRequest}
             />
           ) : activeModule.id === 'settings' ? (
             <SettingsPage

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.15 — Simplified sidebar
+
+- Removed the AI Setup and Reload latest build controls from the sidebar footer.
+- Kept provider configuration inside AI Agent and documented Chrome's standard extension reload
+  flow for unpacked development builds.
+
 ## 0.7.14 — Classic record inspection and compact Setup actions
 
 - Promoted Record Inspector to the first Build module and made it the default workspace view.
