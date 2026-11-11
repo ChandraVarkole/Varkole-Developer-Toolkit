@@ -30,7 +30,10 @@
     name/type/value, and Refresh inspection reloads changes. Also test a pasted 15/18-character ID
     and an inaccessible record.
 13. In Export, preview a query and download CSV/JSON; verify relationship fields are flattened, CSV quotes are escaped and formula-like values are prefixed safely.
-14. Open Logs, Coverage, Users, Access, Metadata and App Tabs; verify supported pages load and insufficient permissions are reported without crashing.
+14. Open Logs, Coverage, Users, Access, Installed Packages, Flows, Metadata, Integrations and App
+    Tabs. Verify supported pages auto-load and insufficient permissions are reported without
+    crashing. In Integrations, confirm one denied category does not block the other categories and
+    no credential secret/token is displayed.
 15. Open Settings → Developer diagnostics, copy the safe context, then inspect the Varkole frame and verify source maps and `services/data` Network requests.
 16. In a sandbox, run benign anonymous Apex, a compile error and a runtime exception. Verify the
     result shows compile/runtime details and directs the user to the Debug Logs tab. With a trace

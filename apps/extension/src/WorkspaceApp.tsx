@@ -10,6 +10,7 @@ import { AiAgentPage } from './pages/AiAgentPage';
 import { DebugLogsPage } from './pages/DebugLogsPage';
 import { ExportPage } from './pages/ExportPage';
 import { ImportPage } from './pages/ImportPage';
+import { IntegrationsPage } from './pages/IntegrationsPage';
 import { MetadataPage } from './pages/MetadataPage';
 import { OrgInfoPage } from './pages/OrgInfoPage';
 import { RecordsPage } from './pages/RecordsPage';
@@ -40,7 +41,10 @@ const MODULES: ModuleItem[] = [
   { id: 'coverage', label: 'Code Coverage', icon: '◔', available: true, group: 'Build' },
   { id: 'users', label: 'Users', icon: '♙', available: true, group: 'Admin' },
   { id: 'access', label: 'Access Assignments', icon: '⌾', available: true, group: 'Admin' },
+  { id: 'packages', label: 'Installed Packages', icon: '⬡', available: true, group: 'Admin' },
+  { id: 'flows', label: 'Flows', icon: '⇄', available: true, group: 'Admin' },
   { id: 'metadata', label: 'Schema Explorer', icon: '◇', available: true, group: 'Admin' },
+  { id: 'integrations', label: 'Integrations', icon: '⇆', available: true, group: 'Admin' },
   { id: 'app-tabs', label: 'App Navigation', icon: '⊞', available: true, group: 'Admin' },
   {
     id: 'ai',
@@ -139,7 +143,7 @@ export function WorkspaceApp() {
           >
             ⚙ AI Setup
           </button>
-          <span>Private Beta · v0.7.8</span>
+          <span>Private Beta · v0.7.9</span>
         </div>
       </aside>
 
@@ -228,6 +232,11 @@ export function WorkspaceApp() {
             />
           ) : activeModule.id === 'metadata' ? (
             <MetadataPage
+              key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}`}
+              org={selectedOrg}
+            />
+          ) : activeModule.id === 'integrations' ? (
+            <IntegrationsPage
               key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}`}
               org={selectedOrg}
             />

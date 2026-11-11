@@ -914,6 +914,36 @@ code,
   background: white;
   box-shadow: 0 5px 20px rgb(9 30 66 / 5%);
 }
+
+.inventory-section {
+  display: grid;
+  gap: 14px;
+}
+
+.inventory-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.inventory-section-heading h2 {
+  margin: 0 0 4px;
+  color: #17223b;
+  font-size: 1.2rem;
+}
+
+.inventory-section-heading p {
+  margin: 0;
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .inventory-section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

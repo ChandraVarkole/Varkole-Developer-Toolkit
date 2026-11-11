@@ -63,7 +63,12 @@ export function ReadOnlyQueryPage({
     try {
       const next = await sendMessage<QueryPage>({
         type: 'QUERY_NEXT',
-        payload: { key: org.key, nextRecordsUrl: result.nextRecordsUrl, requestId: id },
+        payload: {
+          key: org.key,
+          nextRecordsUrl: result.nextRecordsUrl,
+          requestId: id,
+          mode: config.mode,
+        },
       });
       setResult(config.transformResult ? config.transformResult(next) : next);
       setPageNumber((page) => page + 1);

@@ -1,4 +1,5 @@
 import {
+  SalesforceMetadataClient,
   SalesforceRestClient,
   SalesforceToolingClient,
   SalesforceTransport,
@@ -138,6 +139,12 @@ async function handleRequest(request: UiRequest): Promise<unknown> {
       );
     case 'GET_TABS':
       return withRestClient(request.payload.key, (client, _org, signal) => client.getTabs(signal));
+    case 'GET_EXTERNAL_CLIENT_APPS':
+      return runAbortable(request.payload.requestId, (signal) =>
+        withMetadataClient(request.payload.key, (client) =>
+          client.listExternalClientApplications(signal),
+        ),
+      );
     case 'GET_APEX_LOG_BODY':
       return withToolingClient(request.payload.key, (client) =>
         client.getApexLogBody(request.payload.logId),
@@ -574,6 +581,29 @@ async function withToolingClient<T>(
       accessToken: session.accessToken,
     });
     return action(new SalesforceToolingClient({ transport, apiVersion: org.apiVersion }), org);
+  };
+  const session = await requireSession(key);
+  try {
+    return await execute(session);
+  } catch (error) {
+    if (isExpiredSession(error) && session.refreshToken) {
+      return execute(await refreshSession(key, session));
+    }
+    throw error;
+  }
+}
+
+async function withMetadataClient<T>(
+  key: string,
+  action: (client: SalesforceMetadataClient, org: OrgIdentity) => Promise<T>,
+): Promise<T> {
+  const org = await ensureKnownOrg(key);
+  const execute = (session: OrgTokenSession) => {
+    const transport = new SalesforceTransport({
+      instanceUrl: session.instanceUrl,
+      accessToken: session.accessToken,
+    });
+    return action(new SalesforceMetadataClient({ transport, apiVersion: org.apiVersion }), org);
   };
   const session = await requireSession(key);
   try {

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.9 — Setup inventories
+
+- Added Installed Packages with package name, namespace prefix, managed/unmanaged/unlocked type,
+  four-part version, release state, and installed/deprecated status.
+- Added Flows with label, API name, namespace, managed/unmanaged type, active/inactive status, and
+  manageable state.
+- Added an Integrations inventory for Connected Apps, External Client Apps, Named Credentials, and
+  External Credentials. Each category loads independently and reports its own Salesforce permission
+  error without blocking the others; credential secrets are never requested.
+- Added a narrowly scoped read-only Metadata API client for External Client Application names and
+  package metadata, with same-org URL pinning, session-expiry handling, and permission-aware faults.
+- Fixed read-only Tooling pages to preserve Tooling mode when loading subsequent query pages.
+
 ## 0.7.8 — Navigation, data import, and org release details
 
 - Added secure same-org hyperlinks to every available Salesforce tab in App Navigation.

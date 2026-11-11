@@ -141,4 +141,25 @@ describe('SalesforceTransport', () => {
     });
     expect(browserFetch).toHaveBeenCalledOnce();
   });
+
+  it('maps Metadata API permission faults without returning SOAP markup', async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(
+          '<Envelope><Body><Fault><faultstring>INSUFFICIENT_ACCESS: permission denied</faultstring></Fault></Body></Envelope>',
+          { status: 500, headers: { 'Content-Type': 'text/xml' } },
+        ),
+      );
+    const transport = new SalesforceTransport({
+      instanceUrl: 'https://acme.my.salesforce.com',
+      accessToken: 'secret-token',
+      fetchImpl,
+    });
+
+    await expect(
+      transport.postMetadataSoap('/services/Soap/m/68.0', 'listMetadata', '<met:listMetadata/>'),
+    ).rejects.toMatchObject({ data: { code: 'PERMISSION_DENIED' } });
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
 });
