@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.10 — Reliable local build reloads
+
+- Added a Reload latest build action that restarts the unpacked extension from its originally
+  installed directory, with a warning that temporary UI state and the session-only AI key reset.
+- Documented `apps/extension/dist` as the single stable owner-development installation path and
+  clarified that version-numbered beta folders are immutable tester snapshots.
+- Added a local-testing guide beside the extension project so the stable-folder update steps remain
+  easy to find without adding development files to the published package.
+
 ## 0.7.9 — Setup inventories
 
 - Added Installed Packages with package name, namespace prefix, managed/unmanaged/unlocked type,

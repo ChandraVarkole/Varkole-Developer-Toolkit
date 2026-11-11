@@ -22,12 +22,17 @@ npm run verify
 
 An `.env` file is not required for normal browser-session use. To enable the OAuth fallback, copy `.env.example` to `.env` and set `VITE_SALESFORCE_CLIENT_ID` to the public consumer key. No client secret belongs in this repository or extension.
 
-Load `apps/extension/dist` from `chrome://extensions` using **Load unpacked**. Pin the extension,
-open a signed-in Salesforce tab, refresh that tab once after installation, and click Varkole. A
-compact right-side drawer with vertical navigation opens over Salesforce and immediately uses the
-current user's existing access. On a Salesforce record page it opens Record Inspector and loads the
-current record automatically. The left-edge chevron hides the drawer, the small Varkole launcher
-restores it, and the expand control offers the secondary full-page workspace.
+Load `apps/extension/dist` from `chrome://extensions` using **Load unpacked**. Always keep this same
+stable folder as the owner-development installation—do not load a version-numbered beta release
+folder. After future builds, select **Reload latest build** in Varkole (or **Reload** in
+`chrome://extensions`) and refresh open Salesforce tabs once. Chrome reloads only the exact folder
+that was originally selected; it cannot switch an unpacked installation to a newer versioned folder.
+
+Pin the extension, open a signed-in Salesforce tab, refresh that tab once after installation, and
+click Varkole. A compact right-side drawer with vertical navigation opens over Salesforce and
+immediately uses the current user's existing access. On a Salesforce record page it opens Record
+Inspector and loads the current record automatically. The left-edge chevron hides the drawer, the
+small Varkole launcher restores it, and the expand control offers the secondary full-page workspace.
 
 ## Optional Salesforce External Client App registration
 

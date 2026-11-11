@@ -15,3 +15,7 @@ export function openWorkspace(module = ''): void {
   const suffix = module ? `#${module}` : '';
   void chrome.tabs.create({ url: chrome.runtime.getURL(`workspace.html${suffix}`) });
 }
+
+export function reloadExtension(): void {
+  chrome.runtime.reload();
+}

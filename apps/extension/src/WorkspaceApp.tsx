@@ -19,7 +19,7 @@ import { READ_ONLY_MODULES } from './pages/read-only-modules';
 import { RunApexPage } from './pages/RunApexPage';
 import { SoqlPage } from './pages/SoqlPage';
 import { orgName } from './org';
-import { openWorkspace } from './api';
+import { openWorkspace, reloadExtension } from './api';
 
 interface ModuleItem {
   id: string;
@@ -143,7 +143,22 @@ export function WorkspaceApp() {
           >
             ⚙ AI Setup
           </button>
-          <span>Private Beta · v0.7.9</span>
+          <button
+            type="button"
+            title="Reload files from the folder Chrome originally loaded"
+            onClick={() => {
+              if (
+                window.confirm(
+                  'Reload Varkole from its installed folder? Unsaved screen state and the temporary AI key will be cleared. Refresh open Salesforce tabs afterward.',
+                )
+              ) {
+                reloadExtension();
+              }
+            }}
+          >
+            ↻ Reload latest build
+          </button>
+          <span>Private Beta · v0.7.10</span>
         </div>
       </aside>
 

@@ -28,6 +28,11 @@ folder, then select **Reload** for Varkole on `chrome://extensions` and refresh 
 Loading each version from a different path can create a separate unpacked extension installation and
 reset extension-scoped settings.
 
+The repository owner should instead load the stable `apps/extension/dist` folder once. Running
+`npm run build` updates that same folder, after which **Reload latest build** inside Varkole reloads
+the files. Version-numbered beta folders are immutable tester snapshots and must not be used as the
+owner's development installation.
+
 ## AI Agent testing
 
 Each tester supplies their own supported AI-provider key. Keys remain in temporary Chrome session
