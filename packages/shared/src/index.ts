@@ -113,6 +113,10 @@ export interface ExecuteAnonymousResult {
   exceptionStackTrace?: string;
 }
 
+export interface ApexTestRunSubmission {
+  jobId: string;
+}
+
 export interface OrgLimit {
   Max: number;
   Remaining: number;
@@ -219,6 +223,14 @@ export type UiRequest =
       payload: {
         key: string;
         apex: string;
+        requestId: string;
+        confirmedProduction: boolean;
+      };
+    }
+  | {
+      type: 'RUN_ALL_APEX_TESTS';
+      payload: {
+        key: string;
         requestId: string;
         confirmedProduction: boolean;
       };

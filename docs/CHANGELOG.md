@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.12 — Run all Apex tests
+
+- Added a guarded Run All Tests action to Code Coverage using Salesforce's asynchronous Tooling
+  Test Runner API with Apex-only execution and coverage collection enabled.
+- Added live queued/completed/failed progress, failed-test details, and automatic coverage refresh
+  after Salesforce finishes the run.
+- Added a separate Production confirmation and protected the internal polling queries with strict
+  Salesforce ID validation.
+
 ## 0.7.11 — Compatible setup inventory fields
 
 - Removed the unsupported `SubscriberPackageVersion.ContainerOptions` field and now classifies

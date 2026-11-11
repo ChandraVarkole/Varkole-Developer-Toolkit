@@ -8,6 +8,7 @@ import { useExtensionState } from './hooks';
 import { AppTabsPage } from './pages/AppTabsPage';
 import { AiAgentPage } from './pages/AiAgentPage';
 import { DebugLogsPage } from './pages/DebugLogsPage';
+import { CoveragePage } from './pages/CoveragePage';
 import { ExportPage } from './pages/ExportPage';
 import { ImportPage } from './pages/ImportPage';
 import { IntegrationsPage } from './pages/IntegrationsPage';
@@ -158,7 +159,7 @@ export function WorkspaceApp() {
           >
             ↻ Reload latest build
           </button>
-          <span>Private Beta · v0.7.11</span>
+          <span>Private Beta · v0.7.12</span>
         </div>
       </aside>
 
@@ -257,6 +258,11 @@ export function WorkspaceApp() {
             />
           ) : activeModule.id === 'logs' ? (
             <DebugLogsPage
+              key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}`}
+              org={selectedOrg}
+            />
+          ) : activeModule.id === 'coverage' ? (
+            <CoveragePage
               key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}`}
               org={selectedOrg}
             />

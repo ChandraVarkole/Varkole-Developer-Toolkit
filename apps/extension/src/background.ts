@@ -212,6 +212,19 @@ async function handleRequest(request: UiRequest): Promise<unknown> {
         ),
       );
     }
+    case 'RUN_ALL_APEX_TESTS': {
+      const org = await ensureKnownOrg(request.payload.key);
+      if (org.environment === 'production' && !request.payload.confirmedProduction) {
+        throw new AppError({
+          code: 'INVALID_REQUEST',
+          message: 'Production test execution requires the explicit production confirmation.',
+          retryable: false,
+        });
+      }
+      return runAbortable(request.payload.requestId, (signal) =>
+        withToolingClient(request.payload.key, (client) => client.runAllApexTests(signal)),
+      );
+    }
     case 'IMPORT_RECORDS': {
       const org = await ensureKnownOrg(request.payload.key);
       if (!request.payload.confirmedIrreversible) {

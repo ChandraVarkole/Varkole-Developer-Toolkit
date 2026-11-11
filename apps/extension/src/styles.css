@@ -708,6 +708,13 @@ code,
   color: var(--muted);
   font-size: 14px;
 }
+.coverage-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 .eyebrow,
 .dialog-kicker {
   color: #1680d7;
@@ -2691,6 +2698,110 @@ tbody tr:hover td {
   gap: 9px;
   color: #5f4c2e;
   font-size: 11px;
+}
+.test-run-confirmation {
+  display: grid;
+  gap: 13px;
+  padding: 17px 18px;
+  border: 1px solid #c9dcf5;
+  border-radius: 11px;
+  background: #f6faff;
+}
+.test-run-confirmation.production {
+  border-color: #efb9ae;
+  background: #fff3f0;
+}
+.test-run-confirmation p,
+.test-run-status p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.test-run-production-text {
+  display: grid;
+  gap: 6px;
+  max-width: 360px;
+  color: #7b3a32;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.test-run-production-text input {
+  padding: 9px 11px;
+  border: 1px solid #d9a69d;
+  border-radius: 7px;
+  background: white;
+}
+.test-run-confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+.test-run-status {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #c9dcf5;
+  border-radius: 11px;
+  background: #f7faff;
+}
+.test-run-status.complete {
+  border-color: #bedfc9;
+  background: #f4fbf6;
+}
+.test-run-status.unsuccessful {
+  border-color: #efc2ba;
+  background: #fff4f2;
+}
+.test-run-status-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.test-run-status-heading h2,
+.test-failures > h2 {
+  margin: 3px 0 0;
+  color: #12203e;
+  font-size: 18px;
+}
+.test-run-status-heading > strong {
+  color: #176ac5;
+  font-size: 20px;
+}
+.test-run-progress-bar {
+  height: 5px;
+  min-width: 4px;
+  max-width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #16c7e8, #176ed8);
+  transition: width 220ms ease;
+}
+.test-run-metrics {
+  display: flex;
+  gap: 10px 22px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+.test-run-metrics strong {
+  color: #12203e;
+  font-size: 14px;
+}
+.test-run-metrics .failed,
+.test-run-metrics .failed strong {
+  color: #b34435;
+}
+.test-run-success {
+  color: #267854 !important;
+  font-weight: 700;
+}
+.test-failures {
+  display: grid;
+  gap: 10px;
 }
 .apex-confirmation .button {
   justify-self: end;

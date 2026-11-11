@@ -1,4 +1,9 @@
-import type { ExecuteAnonymousResult, QueryPage, QueryRecord } from '@varkole/shared';
+import type {
+  ApexTestRunSubmission,
+  ExecuteAnonymousResult,
+  QueryPage,
+  QueryRecord,
+} from '@varkole/shared';
 import type { SalesforceTransport } from './transport';
 
 interface RawQueryResponse {
@@ -52,6 +57,23 @@ export class SalesforceToolingClient {
       { retry: false },
     );
     return result.data;
+  }
+
+  async runAllApexTests(signal?: AbortSignal): Promise<ApexTestRunSubmission> {
+    const result = await this.transport.writeJson<string>(
+      'POST',
+      `${this.apiRoot}/runTestsAsynchronous/`,
+      {
+        testLevel: 'RunAllTestsInOrg',
+        testCategories: ['Apex'],
+        skipCodeCoverage: 'false',
+      },
+      signal,
+    );
+    if (!/^707[A-Za-z0-9]{12}(?:[A-Za-z0-9]{3})?$/.test(result.data)) {
+      throw new Error('Salesforce did not return a valid asynchronous Apex test job ID.');
+    }
+    return { jobId: result.data };
   }
 
   async getApexLogBody(logId: string, signal?: AbortSignal): Promise<string> {

@@ -1,24 +1,7 @@
 import type { ReadOnlyQueryConfig } from './ReadOnlyQueryPage';
-import { addCoveragePercentages } from './coverage-utils';
 import { formatFlows, formatInstalledPackages } from './setup-inventory';
 
 export const READ_ONLY_MODULES: Record<string, ReadOnlyQueryConfig> = {
-  coverage: {
-    title: 'Code Coverage',
-    eyebrow: 'Apex tests · read-only',
-    actionLabel: 'Load coverage',
-    mode: 'tooling',
-    transformResult: addCoveragePercentages,
-    columnLabels: {
-      Name: 'File',
-      Coverage: 'Coverage',
-      CoveredLines: 'Covered',
-      UncoveredLines: 'Uncovered',
-      TotalLines: 'Total lines',
-    },
-    query:
-      'SELECT ApexClassOrTrigger.Name, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverageAggregate ORDER BY ApexClassOrTrigger.Name LIMIT 200',
-  },
   users: {
     title: 'Users',
     eyebrow: 'Administration · read-only',
