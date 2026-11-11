@@ -27,6 +27,7 @@ export function RecordsPage({
   const [fields, setFields] = useState('');
   const [recordId, setRecordId] = useState(initialRecordId ?? '');
   const [objects, setObjects] = useState<SalesforceObjectSummary[]>([]);
+  const [resolvedObjectApiName, setResolvedObjectApiName] = useState<string>();
   const [describe, setDescribe] = useState<SalesforceObjectDescribe>();
   const [result, setResult] = useState<QueryPage>();
   const [error, setError] = useState<string>();
@@ -38,40 +39,47 @@ export function RecordsPage({
     () => inferObjectFromRecordId(recordId, objects),
     [objects, recordId],
   );
+  const recordObjectApiName = inferredObject?.name ?? resolvedObjectApiName;
   const activeDescribe = describe?.name === objectApiName ? describe : undefined;
   const recordMode = Boolean(recordId.trim());
 
   useEffect(() => {
-    if (inferredObject && inferredObject.name !== objectApiName) {
-      setObjectApiName(inferredObject.name);
+    if (recordObjectApiName && recordObjectApiName !== objectApiName) {
+      setObjectApiName(recordObjectApiName);
       setResult(undefined);
     }
-  }, [inferredObject, objectApiName]);
-
-  useEffect(() => {
-    if (initialRecordId && objects.length > 0 && !inferredObject) {
-      setError(
-        'Salesforce did not return an accessible object for this record ID. The current user may not have object access.',
-      );
-    }
-  }, [inferredObject, initialRecordId, objects.length]);
+  }, [objectApiName, recordObjectApiName]);
 
   useEffect(() => {
     if (!org || !initialRecordId) return;
     let active = true;
     setLoadingContext(true);
-    void sendMessage<SalesforceObjectSummary[]>({
-      type: 'GET_OBJECTS',
-      payload: { key: org.key },
-    })
-      .then((next) => {
-        if (active) setObjects(sortSalesforceObjects(next));
-      })
-      .catch((cause: unknown) => {
-        if (active)
+    setResolvedObjectApiName(undefined);
+    void Promise.allSettled([
+      sendMessage<SalesforceObjectSummary[]>({
+        type: 'GET_OBJECTS',
+        payload: { key: org.key },
+      }),
+      sendMessage<string>({
+        type: 'RESOLVE_RECORD_OBJECT',
+        payload: { key: org.key, recordId: initialRecordId },
+      }),
+    ])
+      .then(([objectsResult, resolverResult]) => {
+        if (!active) return;
+        const nextObjects =
+          objectsResult.status === 'fulfilled' ? sortSalesforceObjects(objectsResult.value) : [];
+        setObjects(nextObjects);
+        if (resolverResult.status === 'fulfilled') {
+          setResolvedObjectApiName(resolverResult.value);
+          return;
+        }
+        if (!inferObjectFromRecordId(initialRecordId, nextObjects)) {
+          const cause = resolverResult.reason as unknown;
           setError(
             cause instanceof Error ? cause.message : 'Salesforce could not identify the record.',
           );
+        }
       })
       .finally(() => {
         if (active) setLoadingContext(false);
@@ -136,8 +144,7 @@ export function RecordsPage({
     }
   }
 
-  const contextReady =
-    !initialRecordId || (inferredObject && inferredObject.name === objectApiName);
+  const contextReady = !initialRecordId || recordObjectApiName === objectApiName;
   useAutoLoad(
     run,
     org && initialRecordId && contextReady

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.16 — Custom-object record inspection
+
+- Added a permission-aware Salesforce UI API fallback that resolves an object API name directly
+  from the current record ID when the global object key-prefix list is incomplete.
+- Custom and namespaced records now continue through the same Describe metadata and bounded
+  `FIELDS(ALL)` inspection used for standard records.
+- Added regression coverage for custom-object resolution without weakening current-user access.
+
 ## 0.7.15 — Simplified sidebar
 
 - Removed the AI Setup and Reload latest build controls from the sidebar footer.

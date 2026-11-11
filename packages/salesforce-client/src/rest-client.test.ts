@@ -90,6 +90,35 @@ describe('SalesforceRestClient describe', () => {
     ]);
   });
 
+  it('resolves a custom record object through the permission-aware UI API', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({ id: 'a001G00000ABCdeQAH', apiName: 'Invoice__c', fields: {} }),
+        {
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+    const client = new SalesforceRestClient({
+      transport: new SalesforceTransport({
+        instanceUrl: 'https://acme.my.salesforce.com',
+        accessToken: 'secret',
+        fetchImpl,
+      }),
+      apiVersion: '68.0',
+    });
+
+    await expect(client.resolveRecordObjectApiName('a001G00000ABCdeQAH')).resolves.toBe(
+      'Invoice__c',
+    );
+    const request = fetchImpl.mock.calls[0]?.[0];
+    const url =
+      typeof request === 'string' ? request : request instanceof URL ? request.href : request?.url;
+    expect(url).toContain(
+      '/services/data/v68.0/ui-api/records/a001G00000ABCdeQAH?layoutTypes=Compact&modes=View',
+    );
+  });
+
   it('reads report and dashboard analytics through bounded read-only endpoints', async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () =>
       Promise.resolve(

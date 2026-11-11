@@ -42,6 +42,10 @@ interface RawObjectSummary extends SalesforceObjectSummary {
   deletable?: boolean;
 }
 
+interface RawUiRecord {
+  apiName?: unknown;
+}
+
 interface RawTabInfo {
   label?: string;
   name?: string;
@@ -135,6 +139,23 @@ export class SalesforceRestClient {
       .sort((left, right) =>
         left.label.localeCompare(right.label, undefined, { sensitivity: 'base', numeric: true }),
       );
+  }
+
+  async resolveRecordObjectApiName(recordId: string, signal?: AbortSignal): Promise<string> {
+    if (!/^[A-Za-z0-9]{15}(?:[A-Za-z0-9]{3})?$/.test(recordId) || recordId.startsWith('00D')) {
+      throw new Error('Enter a valid Salesforce record ID.');
+    }
+    const result = await this.transport.get<RawUiRecord>(
+      `${this.apiRoot}/ui-api/records/${encodeURIComponent(recordId)}?layoutTypes=Compact&modes=View`,
+      signal,
+    );
+    if (
+      typeof result.data.apiName !== 'string' ||
+      !/^[A-Za-z][A-Za-z0-9_]*$/.test(result.data.apiName)
+    ) {
+      throw new Error('Salesforce did not return the object API name for this record.');
+    }
+    return result.data.apiName;
   }
 
   async describeObject(
