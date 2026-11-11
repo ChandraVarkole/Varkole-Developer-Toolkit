@@ -60,7 +60,7 @@ export class SalesforceToolingClient {
   }
 
   async runAllApexTests(signal?: AbortSignal): Promise<ApexTestRunSubmission> {
-    const result = await this.transport.writeJson<string>(
+    const result = await this.transport.writeJson<unknown>(
       'POST',
       `${this.apiRoot}/runTestsAsynchronous/`,
       {
@@ -70,10 +70,11 @@ export class SalesforceToolingClient {
       },
       signal,
     );
-    if (!/^707[A-Za-z0-9]{12}(?:[A-Za-z0-9]{3})?$/.test(result.data)) {
+    const jobId = apexTestJobId(result.data);
+    if (!jobId) {
       throw new Error('Salesforce did not return a valid asynchronous Apex test job ID.');
     }
-    return { jobId: result.data };
+    return { jobId };
   }
 
   async getApexLogBody(logId: string, signal?: AbortSignal): Promise<string> {
@@ -86,4 +87,17 @@ export class SalesforceToolingClient {
     );
     return result.data;
   }
+}
+
+function apexTestJobId(value: unknown): string | undefined {
+  const candidate =
+    typeof value === 'string'
+      ? value
+      : value && typeof value === 'object'
+        ? ((value as { id?: unknown; jobId?: unknown }).id ??
+          (value as { id?: unknown; jobId?: unknown }).jobId)
+        : undefined;
+  return typeof candidate === 'string' && /^707[A-Za-z0-9]{12}(?:[A-Za-z0-9]{3})?$/.test(candidate)
+    ? candidate
+    : undefined;
 }

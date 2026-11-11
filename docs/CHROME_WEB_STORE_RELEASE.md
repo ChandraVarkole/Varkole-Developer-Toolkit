@@ -2,7 +2,7 @@
 
 ## Current recommendation
 
-Version 0.7.12 is labeled for beta testing and is suitable for continued local testing and a private trusted-tester submission after
+Version 0.7.13 is labeled for beta testing and is suitable for continued local testing and a private trusted-tester submission after
 the remaining checklist items below are completed. Do not submit it as a public production release
 until the real-org acceptance evidence is recorded.
 

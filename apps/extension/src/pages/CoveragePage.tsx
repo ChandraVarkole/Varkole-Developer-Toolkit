@@ -151,7 +151,13 @@ export function CoveragePage({ org }: { org?: OrgIdentity | undefined }) {
           confirmedProduction: productionConfirmed,
         },
       });
-      setTestJobId(submission.jobId);
+      const jobId = submission?.jobId;
+      if (!jobId) {
+        throw new Error(
+          'The updated background service is not active. Click Reload latest build, refresh Salesforce, and try again.',
+        );
+      }
+      setTestJobId(jobId);
       setShowConfirmation(false);
       setAcknowledged(false);
       setProductionText('');

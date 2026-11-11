@@ -261,6 +261,7 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
               <thead>
                 <tr>
                   <th>#</th>
+                  <th>Action</th>
                   {[
                     'StartTime',
                     'LogUser.Name',
@@ -286,7 +287,6 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
                       </button>
                     </th>
                   ))}
-                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -296,12 +296,6 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
                     className={record.Id === selectedId ? 'selected-log-row' : ''}
                   >
                     <td className="row-number">{index + 1}</td>
-                    <td>{formatValue(record.StartTime)}</td>
-                    <td>{formatValue(nestedValue(record, 'LogUser.Name'))}</td>
-                    <td>{formatValue(record.Operation)}</td>
-                    <td>{formatValue(record.Status)}</td>
-                    <td>{formatBytes(record.LogLength)}</td>
-                    <td>{formatValue(record.DurationMilliseconds)} ms</td>
                     <td>
                       <button
                         className="button button-ghost"
@@ -311,6 +305,12 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
                         View log
                       </button>
                     </td>
+                    <td>{formatValue(record.StartTime)}</td>
+                    <td>{formatValue(nestedValue(record, 'LogUser.Name'))}</td>
+                    <td>{formatValue(record.Operation)}</td>
+                    <td>{formatValue(record.Status)}</td>
+                    <td>{formatBytes(record.LogLength)}</td>
+                    <td>{formatValue(record.DurationMilliseconds)} ms</td>
                   </tr>
                 ))}
               </tbody>

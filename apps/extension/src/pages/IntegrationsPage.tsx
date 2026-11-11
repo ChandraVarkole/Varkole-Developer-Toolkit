@@ -6,6 +6,7 @@ import { EmptyState, InlineError } from '../components/Status';
 import { useAutoLoad } from '../useAutoLoad';
 import { INTEGRATION_QUERIES, type IntegrationQueryConfig } from './integration-config';
 import { packageStateLabel } from './setup-inventory';
+import { salesforceSetupUrl, SETUP_PATHS } from './setup-navigation';
 
 export function IntegrationsPage({ org }: { org?: OrgIdentity | undefined }) {
   if (!org) {
@@ -94,6 +95,7 @@ function IntegrationQuerySection({
   }
 
   useAutoLoad(load, `${org.key}:${config.id}`);
+  const setupUrl = salesforceSetupUrl(org, config.setupPath);
 
   return (
     <section className="inventory-section" aria-labelledby={`${config.id}-title`}>
@@ -102,14 +104,26 @@ function IntegrationQuerySection({
           <h2 id={`${config.id}-title`}>{config.title}</h2>
           <p>{config.description}</p>
         </div>
-        <button
-          className="button button-secondary"
-          type="button"
-          disabled={loading}
-          onClick={() => void load()}
-        >
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
+        <div className="inventory-section-actions">
+          {setupUrl && (
+            <a
+              className="button button-secondary"
+              href={setupUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              Open in Salesforce <span aria-hidden="true">↗</span>
+            </a>
+          )}
+          <button
+            className="button button-secondary"
+            type="button"
+            disabled={loading}
+            onClick={() => void load()}
+          >
+            {loading ? 'Loading…' : 'Refresh'}
+          </button>
+        </div>
       </div>
       <InlineError message={error} />
       {result && (
@@ -160,6 +174,7 @@ function ExternalClientAppsSection({ org }: { org: OrgIdentity }) {
   }
 
   useAutoLoad(load, `${org.key}:external-client-apps`);
+  const setupUrl = salesforceSetupUrl(org, SETUP_PATHS.appManager);
 
   return (
     <section className="inventory-section" aria-labelledby="external-client-apps-title">
@@ -168,14 +183,26 @@ function ExternalClientAppsSection({ org }: { org: OrgIdentity }) {
           <h2 id="external-client-apps-title">External Client Apps</h2>
           <p>Metadata visible to users permitted to read Salesforce metadata.</p>
         </div>
-        <button
-          className="button button-secondary"
-          type="button"
-          disabled={loading}
-          onClick={() => void load()}
-        >
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
+        <div className="inventory-section-actions">
+          {setupUrl && (
+            <a
+              className="button button-secondary"
+              href={setupUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              Open in Salesforce <span aria-hidden="true">↗</span>
+            </a>
+          )}
+          <button
+            className="button button-secondary"
+            type="button"
+            disabled={loading}
+            onClick={() => void load()}
+          >
+            {loading ? 'Loading…' : 'Refresh'}
+          </button>
+        </div>
       </div>
       <InlineError message={error} />
       {result && (

@@ -4,6 +4,7 @@ import { sendMessage } from '../api';
 import { QueryResults } from '../components/QueryResults';
 import { EmptyState, InlineError } from '../components/Status';
 import { useAutoLoad } from '../useAutoLoad';
+import { salesforceSetupUrl } from './setup-navigation';
 
 export interface ReadOnlyQueryConfig {
   title: string;
@@ -20,6 +21,7 @@ export interface ReadOnlyQueryConfig {
         description: string;
       }
     | undefined;
+  setupPath?: string | undefined;
 }
 
 export function ReadOnlyQueryPage({
@@ -90,6 +92,8 @@ export function ReadOnlyQueryPage({
     );
   }
 
+  const setupUrl = config.setupPath ? salesforceSetupUrl(org, config.setupPath) : undefined;
+
   return (
     <div className="page-stack">
       <header className="page-header">
@@ -98,14 +102,26 @@ export function ReadOnlyQueryPage({
           <h1>{config.title}</h1>
           {config.description && <p>{config.description}</p>}
         </div>
-        <button
-          className="button button-primary"
-          type="button"
-          disabled={loading}
-          onClick={() => void run()}
-        >
-          {loading ? 'Loading…' : result ? 'Refresh' : config.actionLabel}
-        </button>
+        <div className="page-header-actions">
+          {setupUrl && (
+            <a
+              className="button button-secondary"
+              href={setupUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              Open in Salesforce <span aria-hidden="true">↗</span>
+            </a>
+          )}
+          <button
+            className="button button-primary"
+            type="button"
+            disabled={loading}
+            onClick={() => void run()}
+          >
+            {loading ? 'Loading…' : result ? 'Refresh' : config.actionLabel}
+          </button>
+        </div>
       </header>
 
       {config.guidance && (

@@ -33,7 +33,9 @@
 14. Open Logs, Coverage, Users, Access, Installed Packages, Flows, Metadata, Integrations and App
     Tabs. Verify supported pages auto-load and insufficient permissions are reported without
     crashing. In Integrations, confirm one denied category does not block the other categories and
-    no credential secret/token is displayed.
+    no credential secret/token is displayed. Verify the Flow and Integration Setup links stay on
+    the selected Salesforce org and open the corresponding Setup page. In Logs, verify View log is
+    the first data action beside the row number.
 15. Open Settings → Developer diagnostics, copy the safe context, then inspect the Varkole frame and verify source maps and `services/data` Network requests.
 16. In a sandbox, run benign anonymous Apex, a compile error and a runtime exception. Verify the
     result shows compile/runtime details and directs the user to the Debug Logs tab. With a trace

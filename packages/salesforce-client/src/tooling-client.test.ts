@@ -78,6 +78,26 @@ describe('SalesforceToolingClient asynchronous Apex tests', () => {
 
     await expect(client.runAllApexTests()).rejects.toThrow('valid asynchronous Apex test job ID');
   });
+
+  it('normalizes an object-shaped asynchronous job response', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ id: '707000000000002AAA' }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const client = new SalesforceToolingClient({
+      transport: new SalesforceTransport({
+        instanceUrl: 'https://acme.my.salesforce.com',
+        accessToken: 'secret-token',
+        fetchImpl,
+      }),
+      apiVersion: '68.0',
+    });
+
+    await expect(client.runAllApexTests()).resolves.toEqual({
+      jobId: '707000000000002AAA',
+    });
+  });
 });
 
 describe('SalesforceToolingClient debug logs', () => {

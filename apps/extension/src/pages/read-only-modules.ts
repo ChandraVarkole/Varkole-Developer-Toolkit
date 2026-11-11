@@ -1,5 +1,6 @@
 import type { ReadOnlyQueryConfig } from './ReadOnlyQueryPage';
 import { formatFlows, formatInstalledPackages } from './setup-inventory';
+import { SETUP_PATHS } from './setup-navigation';
 
 export const READ_ONLY_MODULES: Record<string, ReadOnlyQueryConfig> = {
   users: {
@@ -56,6 +57,7 @@ export const READ_ONLY_MODULES: Record<string, ReadOnlyQueryConfig> = {
     eyebrow: 'Automation inventory · read-only',
     actionLabel: 'Load flows',
     mode: 'tooling',
+    setupPath: SETUP_PATHS.flows,
     transformResult: formatFlows,
     columnLabels: {
       Name: 'Flow',

@@ -708,6 +708,14 @@ code,
   color: var(--muted);
   font-size: 14px;
 }
+.page-header-actions,
+.inventory-section-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  flex-wrap: wrap;
+}
 .coverage-actions {
   display: flex;
   align-items: center;
@@ -949,6 +957,9 @@ code,
   .inventory-section-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+  .inventory-section-actions {
+    justify-content: flex-start;
   }
 }
 .form-grid {
@@ -2610,6 +2621,10 @@ tbody tr:hover td {
   .page-header {
     align-items: start;
     flex-direction: column;
+  }
+  .page-header-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
   .record-inspector-header-actions {
     width: 100%;

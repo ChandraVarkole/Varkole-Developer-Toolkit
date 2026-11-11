@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.13 — Setup navigation and test-run compatibility
+
+- Added same-org Salesforce Setup links for Flows, External Client Apps, Connected Apps, Named
+  Credentials, and External Credentials using a strict allowlist of known Setup routes.
+- Moved View log beside the row number so it remains immediately accessible in compact tables.
+- Normalized both documented string and object-shaped Apex test job responses, and replaced the raw
+  missing-job JavaScript error with clear reload guidance when an older service worker is active.
+
 ## 0.7.12 — Run all Apex tests
 
 - Added a guarded Run All Tests action to Code Coverage using Salesforce's asynchronous Tooling

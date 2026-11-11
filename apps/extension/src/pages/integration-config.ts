@@ -1,4 +1,5 @@
 import type { ApiMode } from '@varkole/shared';
+import { SETUP_PATHS } from './setup-navigation';
 
 export interface IntegrationQueryConfig {
   id: string;
@@ -7,6 +8,7 @@ export interface IntegrationQueryConfig {
   mode: ApiMode;
   query: string;
   columnLabels: Record<string, string>;
+  setupPath: string;
 }
 
 export const INTEGRATION_QUERIES: IntegrationQueryConfig[] = [
@@ -15,6 +17,7 @@ export const INTEGRATION_QUERIES: IntegrationQueryConfig[] = [
     title: 'Connected Apps',
     description: 'OAuth applications registered in this org.',
     mode: 'rest',
+    setupPath: SETUP_PATHS.connectedApps,
     query:
       'SELECT Name, OptionsAllowAdminApprovedUsersOnly, OptionsHasSessionLevelPolicy, OptionsIsInternal, LastModifiedDate FROM ConnectedApplication ORDER BY Name',
     columnLabels: {
@@ -30,6 +33,7 @@ export const INTEGRATION_QUERIES: IntegrationQueryConfig[] = [
     title: 'Named Credentials',
     description: 'Callout endpoints and authentication configuration. Secrets are never read.',
     mode: 'tooling',
+    setupPath: SETUP_PATHS.namedCredentials,
     query:
       'SELECT MasterLabel, DeveloperName, NamespacePrefix, NamedCredentialType, CalloutStatus, Endpoint FROM NamedCredential ORDER BY MasterLabel',
     columnLabels: {
@@ -47,6 +51,7 @@ export const INTEGRATION_QUERIES: IntegrationQueryConfig[] = [
     description:
       'Authentication protocols and package ownership. Principal secrets are never read.',
     mode: 'tooling',
+    setupPath: SETUP_PATHS.namedCredentials,
     query:
       'SELECT MasterLabel, DeveloperName, NamespacePrefix, AuthenticationProtocol, ManageableState FROM ExternalCredential ORDER BY MasterLabel',
     columnLabels: {
