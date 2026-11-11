@@ -1,4 +1,5 @@
 const RECORD_ID = /^[A-Za-z0-9]{15}(?:[A-Za-z0-9]{3})?$/;
+const DIRECT_RECORD_PARAMETERS = ['id', 'recordId', 'record', 'eid'] as const;
 
 export function recordIdFromSalesforceUrl(value: string): string | undefined {
   let url: URL;
@@ -8,13 +9,40 @@ export function recordIdFromSalesforceUrl(value: string): string | undefined {
     return undefined;
   }
 
-  const route = `${url.pathname}${url.hash}`;
-  const lightning = route.match(
-    /\/lightning\/r\/(?:[A-Za-z][A-Za-z0-9_]*\/)?([A-Za-z0-9]{15}(?:[A-Za-z0-9]{3})?)(?:\/|$)/,
-  )?.[1];
-  if (lightning && RECORD_ID.test(lightning)) return lightning;
+  for (const parameter of DIRECT_RECORD_PARAMETERS) {
+    const candidate = url.searchParams.get(parameter);
+    if (candidate && isRecordId(candidate)) return candidate;
+  }
 
-  return route
-    .split(/[/?#]/)
-    .find((segment) => RECORD_ID.test(segment) && !segment.startsWith('00D'));
+  for (const route of decodedRouteVariants(`${url.pathname}${url.hash}`)) {
+    const lightning = route.match(
+      /\/lightning\/r\/(?:[A-Za-z][A-Za-z0-9_]*\/)?([A-Za-z0-9]{15}(?:[A-Za-z0-9]{3})?)(?:\/|$)/,
+    )?.[1];
+    if (lightning && isRecordId(lightning)) return lightning;
+
+    const classic = route.split(/[/?#&=]/).find(isRecordId);
+    if (classic) return classic;
+  }
+
+  return undefined;
+}
+
+function decodedRouteVariants(value: string): string[] {
+  const variants = [value];
+  let current = value;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const decoded = decodeURIComponent(current);
+      if (decoded === current) break;
+      variants.push(decoded);
+      current = decoded;
+    } catch {
+      break;
+    }
+  }
+  return variants;
+}
+
+function isRecordId(value: string): boolean {
+  return RECORD_ID.test(value) && !value.startsWith('00D');
 }

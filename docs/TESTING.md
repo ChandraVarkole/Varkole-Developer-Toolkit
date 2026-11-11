@@ -25,10 +25,11 @@
     query and run it. After results load, select another object and verify the old query and results
     clear. For the same object, add fields and verify existing manually typed fields, `WHERE`,
     `ORDER BY`, and `LIMIT` clauses remain intact.
-12. Open Varkole from a standard and custom Salesforce record page. Verify Record Inspector opens
-    automatically, shows every accessible field including blank values, searches label/API
-    name/type/value, and Refresh inspection reloads changes. Also test a pasted 15/18-character ID
-    and an inaccessible record.
+12. Open Varkole from standard and custom record pages in Lightning, Salesforce Classic, and the
+    Classic Console. Verify Record Inspector is the first Build module, opens automatically, shows
+    every accessible field including blank values, searches label/API name/type/value, and Refresh
+    inspection reloads changes. Navigate between records while the drawer is open and verify the
+    inspector follows the URL. Also test a pasted 15/18-character ID and an inaccessible record.
 13. In Export, preview a query and download CSV/JSON; verify relationship fields are flattened, CSV quotes are escaped and formula-like values are prefixed safely.
 14. Open Logs, Coverage, Users, Access, Installed Packages, Flows, Metadata, Integrations and App
     Tabs. Verify supported pages auto-load and insufficient permissions are reported without

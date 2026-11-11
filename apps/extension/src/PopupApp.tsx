@@ -69,7 +69,7 @@ export function PopupApp() {
           <button
             className="button button-primary button-full"
             type="button"
-            onClick={() => openWorkspace('soql')}
+            onClick={() => openWorkspace('records')}
           >
             Open workspace <span>→</span>
           </button>

@@ -107,16 +107,16 @@ function IntegrationQuerySection({
         <div className="inventory-section-actions">
           {setupUrl && (
             <a
-              className="button button-secondary"
+              className="button button-secondary button-compact"
               href={setupUrl}
               target="_blank"
               rel="noreferrer noopener"
             >
-              Open in Salesforce <span aria-hidden="true">↗</span>
+              Open Setup <span aria-hidden="true">↗</span>
             </a>
           )}
           <button
-            className="button button-secondary"
+            className="button button-secondary button-compact"
             type="button"
             disabled={loading}
             onClick={() => void load()}
@@ -186,16 +186,16 @@ function ExternalClientAppsSection({ org }: { org: OrgIdentity }) {
         <div className="inventory-section-actions">
           {setupUrl && (
             <a
-              className="button button-secondary"
+              className="button button-secondary button-compact"
               href={setupUrl}
               target="_blank"
               rel="noreferrer noopener"
             >
-              Open in Salesforce <span aria-hidden="true">↗</span>
+              Open Setup <span aria-hidden="true">↗</span>
             </a>
           )}
           <button
-            className="button button-secondary"
+            className="button button-secondary button-compact"
             type="button"
             disabled={loading}
             onClick={() => void load()}

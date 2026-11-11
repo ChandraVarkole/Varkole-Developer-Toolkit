@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.14 — Classic record inspection and compact Setup actions
+
+- Promoted Record Inspector to the first Build module and made it the default workspace view.
+- Added current-record detection for direct Classic URLs, encoded Classic Console routes, and
+  supported record-ID query parameters while continuing to exclude Salesforce org IDs.
+- Kept the inspector synchronized with Salesforce URL changes and automatically loads all fields
+  visible to the current user through Salesforce APIs in both Classic and Lightning.
+- Reduced the new Flow and Integration Setup/Refresh actions to compact controls.
+
 ## 0.7.13 — Setup navigation and test-run compatibility
 
 - Added same-org Salesforce Setup links for Flows, External Client Apps, Connected Apps, Named

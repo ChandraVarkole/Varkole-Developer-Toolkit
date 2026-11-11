@@ -32,11 +32,11 @@ interface ModuleItem {
 }
 
 const MODULES: ModuleItem[] = [
+  { id: 'records', label: 'Record Inspector', icon: '▤', available: true, group: 'Build' },
   { id: 'soql', label: 'SOQL', icon: '⌘', available: true, group: 'Build' },
   { id: 'run-apex', label: 'Run Apex', icon: '›_', available: true, group: 'Build' },
   { id: 'logs', label: 'Debug Logs', icon: '≡', available: true, group: 'Build' },
   { id: 'org-info', label: 'Org Info', icon: '◎', available: true, group: 'Build' },
-  { id: 'records', label: 'Record Inspector', icon: '▤', available: true, group: 'Build' },
   { id: 'export', label: 'Export', icon: '↓', available: true, group: 'Build' },
   { id: 'import', label: 'Import', icon: '↑', available: true, group: 'Build' },
   { id: 'coverage', label: 'Code Coverage', icon: '◔', available: true, group: 'Build' },
@@ -159,7 +159,7 @@ export function WorkspaceApp() {
           >
             ↻ Reload latest build
           </button>
-          <span>Private Beta · v0.7.13</span>
+          <span>Private Beta · v0.7.14</span>
         </div>
       </aside>
 
@@ -463,7 +463,7 @@ function DiagnosticDetail({ label, value }: { label: string; value: string }) {
 }
 
 function readHash() {
-  return location.hash.replace(/^#/, '') || 'soql';
+  return location.hash.replace(/^#/, '') || 'records';
 }
 
 function isRecordContextMessage(

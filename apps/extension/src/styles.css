@@ -782,6 +782,13 @@ code,
 .button-full {
   width: 100%;
 }
+.button-compact {
+  min-height: 30px;
+  padding: 5px 9px;
+  gap: 5px;
+  border-radius: 7px;
+  font-size: 11px;
+}
 .button kbd {
   padding: 1px 5px;
   border-radius: 4px;

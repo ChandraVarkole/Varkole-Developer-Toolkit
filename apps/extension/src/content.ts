@@ -39,9 +39,7 @@ function initialize() {
   const search = new URLSearchParams({ embedded: '1' });
   const recordId = recordIdFromSalesforceUrl(location.href);
   if (recordId) search.set('recordId', recordId);
-  frame.src = chrome.runtime.getURL(
-    `workspace.html?${search.toString()}#${recordId ? 'records' : 'soql'}`,
-  );
+  frame.src = chrome.runtime.getURL(`workspace.html?${search.toString()}#records`);
 
   const collapse = document.createElement('button');
   collapse.className = 'collapse';
@@ -83,6 +81,17 @@ function sendCurrentRecordContext() {
     new URL(chrome.runtime.getURL('/')).origin,
   );
 }
+
+let lastSalesforceUrl = location.href;
+function sendRecordContextWhenUrlChanges() {
+  if (location.href === lastSalesforceUrl) return;
+  lastSalesforceUrl = location.href;
+  sendCurrentRecordContext();
+}
+
+window.addEventListener('hashchange', sendRecordContextWhenUrlChanges);
+window.addEventListener('popstate', sendRecordContextWhenUrlChanges);
+window.setInterval(sendRecordContextWhenUrlChanges, 750);
 
 const PANEL_STYLES = `
   :host { all: initial; --varkole-drawer-width: clamp(660px, 54vw, 980px); }
