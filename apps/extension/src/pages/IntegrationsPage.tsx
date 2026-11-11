@@ -1,69 +1,11 @@
 import { useState } from 'react';
-import type { ApiMode, MetadataFileProperty, OrgIdentity, QueryPage } from '@varkole/shared';
+import type { MetadataFileProperty, OrgIdentity, QueryPage } from '@varkole/shared';
 import { sendMessage } from '../api';
 import { QueryResults } from '../components/QueryResults';
 import { EmptyState, InlineError } from '../components/Status';
 import { useAutoLoad } from '../useAutoLoad';
+import { INTEGRATION_QUERIES, type IntegrationQueryConfig } from './integration-config';
 import { packageStateLabel } from './setup-inventory';
-
-interface IntegrationQueryConfig {
-  id: string;
-  title: string;
-  description: string;
-  mode: ApiMode;
-  query: string;
-  columnLabels: Record<string, string>;
-}
-
-const INTEGRATION_QUERIES: IntegrationQueryConfig[] = [
-  {
-    id: 'connected-apps',
-    title: 'Connected Apps',
-    description: 'OAuth applications registered in this org.',
-    mode: 'rest',
-    query:
-      'SELECT Name, OptionsAllowAdminApprovedUsersOnly, OptionsHasSessionLevelPolicy, OptionsIsInternal, LastModifiedDate FROM ConnectedApplication ORDER BY Name',
-    columnLabels: {
-      Name: 'Application',
-      OptionsAllowAdminApprovedUsersOnly: 'Admin approved users only',
-      OptionsHasSessionLevelPolicy: 'Session policy',
-      OptionsIsInternal: 'Salesforce internal',
-      LastModifiedDate: 'Last modified',
-    },
-  },
-  {
-    id: 'named-credentials',
-    title: 'Named Credentials',
-    description: 'Callout endpoints and authentication configuration. Secrets are never read.',
-    mode: 'tooling',
-    query:
-      'SELECT MasterLabel, DeveloperName, NamespacePrefix, Endpoint, PrincipalType, CalloutOptionsGenerateAuthorizationHeader FROM NamedCredential ORDER BY MasterLabel',
-    columnLabels: {
-      MasterLabel: 'Named credential',
-      DeveloperName: 'API name',
-      NamespacePrefix: 'Namespace prefix',
-      Endpoint: 'Endpoint',
-      PrincipalType: 'Principal type',
-      CalloutOptionsGenerateAuthorizationHeader: 'Generates authorization header',
-    },
-  },
-  {
-    id: 'external-credentials',
-    title: 'External Credentials',
-    description:
-      'Authentication protocols and package ownership. Principal secrets are never read.',
-    mode: 'tooling',
-    query:
-      'SELECT MasterLabel, DeveloperName, NamespacePrefix, AuthenticationProtocol, ManageableState FROM ExternalCredential ORDER BY MasterLabel',
-    columnLabels: {
-      MasterLabel: 'External credential',
-      DeveloperName: 'API name',
-      NamespacePrefix: 'Namespace prefix',
-      AuthenticationProtocol: 'Authentication protocol',
-      ManageableState: 'Manageable state',
-    },
-  },
-];
 
 export function IntegrationsPage({ org }: { org?: OrgIdentity | undefined }) {
   if (!org) {
@@ -87,10 +29,10 @@ export function IntegrationsPage({ org }: { org?: OrgIdentity | undefined }) {
         </div>
       </header>
 
+      <ExternalClientAppsSection org={org} />
       {INTEGRATION_QUERIES.map((config) => (
         <IntegrationQuerySection key={config.id} org={org} config={config} />
       ))}
-      <ExternalClientAppsSection org={org} />
     </div>
   );
 }
@@ -207,7 +149,6 @@ function ExternalClientAppsSection({ org }: { org: OrgIdentity }) {
           Name: app.fullName,
           Namespace: app.namespacePrefix ?? 'None',
           PackageType: packageStateLabel(app.manageableState, app.namespacePrefix),
-          ManageableState: app.manageableState ?? 'Local',
           LastModified: app.lastModifiedDate ?? '',
         })),
       });
@@ -247,7 +188,6 @@ function ExternalClientAppsSection({ org }: { org: OrgIdentity }) {
             Name: 'External client app',
             Namespace: 'Namespace prefix',
             PackageType: 'Package type',
-            ManageableState: 'Manageable state',
             LastModified: 'Last modified',
           }}
         />

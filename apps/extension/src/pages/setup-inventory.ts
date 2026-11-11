@@ -7,7 +7,6 @@ export function formatInstalledPackages(result: QueryPage): QueryPage {
       .map((record) => {
         const packageInfo = nestedRecord(record, 'SubscriberPackage');
         const version = nestedRecord(record, 'SubscriberPackageVersion');
-        const container = text(version.ContainerOptions);
         const managed = version.IsManaged === true;
         const versionNumber = [
           version.MajorVersion,
@@ -23,7 +22,7 @@ export function formatInstalledPackages(result: QueryPage): QueryPage {
         return {
           Package: text(packageInfo.Name) || text(version.Name) || 'Unnamed package',
           Namespace: text(packageInfo.NamespacePrefix) || 'None',
-          Type: managed ? 'Managed' : /unlock/i.test(container) ? 'Unlocked' : 'Unmanaged',
+          Type: managed ? 'Managed' : 'Unmanaged',
           Version: versionNumber,
           VersionName: text(version.Name),
           Release: text(version.ReleaseState) || 'Unknown',
@@ -50,7 +49,6 @@ export function formatFlows(result: QueryPage): QueryPage {
               ? 'Managed'
               : 'Unmanaged',
           Status: text(record.ActiveVersionId) ? 'Active' : 'Inactive',
-          ManageableState: manageableState || 'Unmanaged',
         };
       })
       .sort((left, right) => compareNames(left.Name, right.Name)),

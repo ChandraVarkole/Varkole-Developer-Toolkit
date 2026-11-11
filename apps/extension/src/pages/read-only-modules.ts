@@ -66,7 +66,7 @@ export const READ_ONLY_MODULES: Record<string, ReadOnlyQueryConfig> = {
       Status: 'Status',
     },
     query:
-      'SELECT SubscriberPackage.Name, SubscriberPackage.NamespacePrefix, SubscriberPackageVersion.Name, SubscriberPackageVersion.MajorVersion, SubscriberPackageVersion.MinorVersion, SubscriberPackageVersion.PatchVersion, SubscriberPackageVersion.BuildNumber, SubscriberPackageVersion.IsManaged, SubscriberPackageVersion.IsDeprecated, SubscriberPackageVersion.ContainerOptions, SubscriberPackageVersion.ReleaseState FROM InstalledSubscriberPackage ORDER BY SubscriberPackage.Name',
+      'SELECT SubscriberPackage.Name, SubscriberPackage.NamespacePrefix, SubscriberPackageVersion.Name, SubscriberPackageVersion.MajorVersion, SubscriberPackageVersion.MinorVersion, SubscriberPackageVersion.PatchVersion, SubscriberPackageVersion.BuildNumber, SubscriberPackageVersion.IsManaged, SubscriberPackageVersion.IsDeprecated, SubscriberPackageVersion.ReleaseState FROM InstalledSubscriberPackage ORDER BY SubscriberPackage.Name',
   },
   flows: {
     title: 'Flows',
@@ -80,7 +80,6 @@ export const READ_ONLY_MODULES: Record<string, ReadOnlyQueryConfig> = {
       Namespace: 'Namespace prefix',
       Type: 'Package type',
       Status: 'Status',
-      ManageableState: 'Manageable state',
     },
     query:
       'SELECT DeveloperName, MasterLabel, NamespacePrefix, ActiveVersionId, ManageableState FROM FlowDefinition ORDER BY MasterLabel',

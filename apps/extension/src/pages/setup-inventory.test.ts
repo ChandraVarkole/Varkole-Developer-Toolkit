@@ -62,6 +62,7 @@ describe('setup inventory formatting', () => {
 
     expect(result.records[0]).toMatchObject({ Type: 'Unmanaged', Status: 'Active' });
     expect(result.records[1]).toMatchObject({ Type: 'Managed', Status: 'Inactive' });
+    expect(result.records[0]).not.toHaveProperty('ManageableState');
   });
 
   it('labels metadata ownership without inventing package state', () => {

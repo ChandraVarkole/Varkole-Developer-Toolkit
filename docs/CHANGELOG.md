@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.11 — Compatible setup inventory fields
+
+- Removed the unsupported `SubscriberPackageVersion.ContainerOptions` field and now classifies
+  installed packages once as Managed or Unmanaged using Salesforce's `IsManaged` value.
+- Replaced the unsupported Named Credential authorization-header field with the supported credential
+  type and callout status fields.
+- Reordered Integrations to External Client Apps, Connected Apps, Named Credentials, then External
+  Credentials.
+- Removed duplicate package/manageable-state columns from Flows and External Client Apps while
+  preserving a single human-friendly Package type column.
+- Added a regression test that prevents the invalid Named Credential field from returning.
+
 ## 0.7.10 — Reliable local build reloads
 
 - Added a Reload latest build action that restarts the unpacked extension from its originally

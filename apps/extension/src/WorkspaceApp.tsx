@@ -158,7 +158,7 @@ export function WorkspaceApp() {
           >
             ↻ Reload latest build
           </button>
-          <span>Private Beta · v0.7.10</span>
+          <span>Private Beta · v0.7.11</span>
         </div>
       </aside>
 
