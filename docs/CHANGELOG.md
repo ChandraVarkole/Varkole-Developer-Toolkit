@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.20 — In-extension AI Agent guide
+
+- Added a dedicated How AI Agent works page inside the AI Agent tab with capabilities, retrieval
+  stages, safety controls, privacy behavior, current technical limits, result terminology, and
+  example questions.
+- Clarified that users do not need to be on a record page: current-page context enables “this
+  record,” while a record ID or sufficient identifying details can be supplied from anywhere.
+- Added a live guide state that tells the user whether Varkole detected a current record.
+
 ## 0.7.19 — Organization license usage
 
 - Added a compact License usage table at the bottom of Org Info with each Salesforce user-license

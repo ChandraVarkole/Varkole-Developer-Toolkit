@@ -13,6 +13,7 @@ import { sendMessage } from '../api';
 import { providerOrigin } from '../ai-provider';
 import { MarkdownMessage } from '../components/MarkdownMessage';
 import { EmptyState, InlineError } from '../components/Status';
+import { AiAgentGuide } from './AiAgentGuide';
 import {
   buildCodeDiscoveryQueries,
   buildCodeResourceQueries,
@@ -108,6 +109,7 @@ export function AiAgentPage({
   const [progress, setProgress] = useState('');
   const [copiedMessage, setCopiedMessage] = useState<number>();
   const [error, setError] = useState<string>();
+  const [showGuide, setShowGuide] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -503,22 +505,32 @@ export function AiAgentPage({
           <h1>AI Agent</h1>
           <p>Ask about your org without preparing queries or context.</p>
         </div>
-        {status.configured && (
-          <div className="ai-connected-badge">
-            <span>Connected</span>
-            <strong>{PROVIDERS.find((item) => item.id === status.provider)?.label}</strong>
-            <code>{status.model}</code>
-            <small>Key kept for up to 8 hours in this browser session</small>
-            <button type="button" onClick={() => setShowConnection((current) => !current)}>
-              {showConnection ? 'Hide settings' : 'Change'}
-            </button>
-          </div>
-        )}
+        <div className="ai-header-actions">
+          <button
+            className="button button-secondary ai-guide-toggle"
+            type="button"
+            onClick={() => setShowGuide((current) => !current)}
+          >
+            {showGuide ? 'Back to AI Agent' : 'How AI Agent works'}
+          </button>
+          {status.configured && (
+            <div className="ai-connected-badge">
+              <span>Connected</span>
+              <strong>{PROVIDERS.find((item) => item.id === status.provider)?.label}</strong>
+              <code>{status.model}</code>
+              <small>Key kept for up to 8 hours in this browser session</small>
+              <button type="button" onClick={() => setShowConnection((current) => !current)}>
+                {showConnection ? 'Hide settings' : 'Change'}
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
-      {!org && <InlineError message={error} />}
+      {showGuide && <AiAgentGuide currentRecordId={currentRecordId} />}
+      {!showGuide && !org && <InlineError message={error} />}
 
-      {statusLoaded && showConnection && (
+      {!showGuide && statusLoaded && showConnection && (
         <section className="section-card ai-connection-card">
           <div className="section-title">
             <div>
@@ -592,188 +604,201 @@ export function AiAgentPage({
         </section>
       )}
 
-      {!org ? (
-        <EmptyState
-          title="Open a Salesforce org"
-          description="AI Agent answers from the current Salesforce browser session."
-        />
-      ) : status.configured && !status.dataConsentGranted ? (
-        <section className="section-card ai-consent-card" aria-labelledby="ai-consent-title">
-          <div className="ai-consent-icon" aria-hidden="true">
-            ✓
-          </div>
-          <div className="ai-consent-content">
-            <div className="eyebrow">Approval required</div>
-            <h2 id="ai-consent-title">Approve AI data sharing for this browser session</h2>
-            <p>
-              When you ask a question, Varkole sends it directly to{' '}
-              <strong>
-                {PROVIDERS.find((item) => item.id === status.provider)?.label ??
-                  'your selected provider'}
-              </strong>{' '}
-              together with only the accessible Salesforce context needed to answer it.
-            </p>
-            <ul>
-              <li>Org and current-user identity</li>
-              <li>Relevant object and field metadata</li>
-              <li>Relevant query results and record values</li>
-              <li>Relevant accessible Apex or component source for code questions</li>
-              <li>Recent messages needed to understand follow-up questions</li>
-            </ul>
-            <p>
-              Data goes from this extension to the selected provider—no Varkole server is in the
-              path. The provider handles it under its own terms and privacy policy. AI Agent remains
-              read-only and cannot write Salesforce records or run Apex.
-            </p>
-            <label className="ai-consent-check">
-              <input
-                type="checkbox"
-                checked={consentChecked}
-                onChange={(event) => setConsentChecked(event.target.checked)}
-              />
-              <span>
-                I understand and approve this data sharing with the selected provider for this
-                browser session.
-              </span>
-            </label>
-            <button
-              className="button button-primary"
-              type="button"
-              disabled={!consentChecked || grantingConsent}
-              onClick={() => void grantDataConsent()}
-            >
-              {grantingConsent ? 'Approving…' : 'Approve and continue'}
-            </button>
-            {error && <InlineError message={error} />}
-          </div>
-        </section>
-      ) : (
-        <section className="section-card ai-chat-card ai-chat-primary">
-          <div className="section-title">
-            <div>
-              <h2>Ask about {org.organizationName}</h2>
+      {!showGuide &&
+        (!org ? (
+          <EmptyState
+            title="Open a Salesforce org"
+            description="AI Agent answers from the current Salesforce browser session."
+          />
+        ) : status.configured && !status.dataConsentGranted ? (
+          <section className="section-card ai-consent-card" aria-labelledby="ai-consent-title">
+            <div className="ai-consent-icon" aria-hidden="true">
+              ✓
+            </div>
+            <div className="ai-consent-content">
+              <div className="eyebrow">Approval required</div>
+              <h2 id="ai-consent-title">Approve AI data sharing for this browser session</h2>
               <p>
-                Varkole automatically reads the schema and records needed for each question using
-                your current Salesforce access.
+                When you ask a question, Varkole sends it directly to{' '}
+                <strong>
+                  {PROVIDERS.find((item) => item.id === status.provider)?.label ??
+                    'your selected provider'}
+                </strong>{' '}
+                together with only the accessible Salesforce context needed to answer it.
               </p>
-            </div>
-            {messages.length > 0 && (
+              <ul>
+                <li>Org and current-user identity</li>
+                <li>Relevant object and field metadata</li>
+                <li>Relevant query results and record values</li>
+                <li>Relevant accessible Apex or component source for code questions</li>
+                <li>Recent messages needed to understand follow-up questions</li>
+              </ul>
+              <p>
+                Data goes from this extension to the selected provider—no Varkole server is in the
+                path. The provider handles it under its own terms and privacy policy. AI Agent
+                remains read-only and cannot write Salesforce records or run Apex.
+              </p>
+              <label className="ai-consent-check">
+                <input
+                  type="checkbox"
+                  checked={consentChecked}
+                  onChange={(event) => setConsentChecked(event.target.checked)}
+                />
+                <span>
+                  I understand and approve this data sharing with the selected provider for this
+                  browser session.
+                </span>
+              </label>
               <button
-                className="button button-ghost"
+                className="button button-primary"
                 type="button"
-                onClick={() => {
-                  setMessages([]);
-                  transientEvidenceByOrg.delete(org.key);
-                  setError(undefined);
-                }}
+                disabled={!consentChecked || grantingConsent}
+                onClick={() => void grantDataConsent()}
               >
-                Clear Chat
+                {grantingConsent ? 'Approving…' : 'Approve and continue'}
               </button>
-            )}
-          </div>
-          {messages.length === 0 ? (
-            <div className="ai-starters">
-              {[
-                'Summarize this org and flag anything I should review.',
-                'Show the reports and dashboards I can access, then explain the most relevant one.',
-                'Help me design a Flow using the real fields on an object in this org.',
-              ].map((starter) => (
-                <button key={starter} type="button" onClick={() => setPrompt(starter)}>
-                  {starter}
-                </button>
-              ))}
+              {error && <InlineError message={error} />}
             </div>
-          ) : (
-            <div className="ai-thread" aria-live="polite" ref={threadRef}>
-              {messages.map((message, index) => (
-                <article className={`ai-message ${message.role}`} key={`${message.role}-${index}`}>
-                  <div className="ai-message-header">
-                    <strong>{message.role === 'assistant' ? 'AI Agent' : 'You'}</strong>
-                    {message.role === 'assistant' && (
-                      <button
-                        type="button"
-                        onClick={() => void copyResponse(message.content, index)}
-                      >
-                        {copiedMessage === index ? 'Copied' : 'Copy'}
-                      </button>
-                    )}
-                  </div>
-                  {message.role === 'assistant' ? (
-                    <MarkdownMessage
-                      content={message.content}
-                      allowedOrigin={new URL(org.instanceUrl).origin}
-                    />
-                  ) : (
-                    <p>{message.content}</p>
-                  )}
-                </article>
-              ))}
-              {asking && (
-                <div className="ai-thinking">
-                  <span className="spinner" /> {progress || 'Working…'}
-                </div>
+          </section>
+        ) : (
+          <section className="section-card ai-chat-card ai-chat-primary">
+            <div className="section-title">
+              <div>
+                <h2>Ask about {org.organizationName}</h2>
+                <p>
+                  Varkole automatically reads the schema and records needed for each question using
+                  your current Salesforce access.
+                </p>
+              </div>
+              {messages.length > 0 && (
+                <button
+                  className="button button-ghost"
+                  type="button"
+                  onClick={() => {
+                    setMessages([]);
+                    transientEvidenceByOrg.delete(org.key);
+                    setError(undefined);
+                  }}
+                >
+                  Clear Chat
+                </button>
               )}
             </div>
-          )}
-          {error && (
-            <div className="ai-composer-error" role="alert">
-              <span aria-hidden="true">!</span>
-              <div>
-                <strong>Could not complete the request</strong>
-                <p>{error}</p>
+            {messages.length === 0 ? (
+              <div className="ai-starters">
+                {[
+                  'Summarize this org and flag anything I should review.',
+                  'Show the reports and dashboards I can access, then explain the most relevant one.',
+                  'Help me design a Flow using the real fields on an object in this org.',
+                ].map((starter) => (
+                  <button key={starter} type="button" onClick={() => setPrompt(starter)}>
+                    {starter}
+                  </button>
+                ))}
               </div>
-              <button type="button" aria-label="Dismiss error" onClick={() => setError(undefined)}>
-                ×
+            ) : (
+              <div className="ai-thread" aria-live="polite" ref={threadRef}>
+                {messages.map((message, index) => (
+                  <article
+                    className={`ai-message ${message.role}`}
+                    key={`${message.role}-${index}`}
+                  >
+                    <div className="ai-message-header">
+                      <strong>{message.role === 'assistant' ? 'AI Agent' : 'You'}</strong>
+                      {message.role === 'assistant' && (
+                        <button
+                          type="button"
+                          onClick={() => void copyResponse(message.content, index)}
+                        >
+                          {copiedMessage === index ? 'Copied' : 'Copy'}
+                        </button>
+                      )}
+                    </div>
+                    {message.role === 'assistant' ? (
+                      <MarkdownMessage
+                        content={message.content}
+                        allowedOrigin={new URL(org.instanceUrl).origin}
+                      />
+                    ) : (
+                      <p>{message.content}</p>
+                    )}
+                  </article>
+                ))}
+                {asking && (
+                  <div className="ai-thinking">
+                    <span className="spinner" /> {progress || 'Working…'}
+                  </div>
+                )}
+              </div>
+            )}
+            {error && (
+              <div className="ai-composer-error" role="alert">
+                <span aria-hidden="true">!</span>
+                <div>
+                  <strong>Could not complete the request</strong>
+                  <p>{error}</p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Dismiss error"
+                  onClick={() => setError(undefined)}
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            <div className={`ai-composer ${error ? 'has-error' : ''}`}>
+              <textarea
+                value={prompt}
+                onChange={(event) => {
+                  setPrompt(event.target.value);
+                  if (error) setError(undefined);
+                }}
+                onKeyDown={(event) => {
+                  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                    event.preventDefault();
+                    void askAgent();
+                  }
+                }}
+                placeholder="Ask anything about this Salesforce org…"
+              />
+              <button
+                className="button button-primary"
+                type="button"
+                disabled={
+                  !status.configured || !status.dataConsentGranted || !prompt.trim() || asking
+                }
+                onClick={() => void askAgent()}
+              >
+                {asking ? 'Working…' : 'Ask AI Agent'}
               </button>
             </div>
-          )}
-          <div className={`ai-composer ${error ? 'has-error' : ''}`}>
-            <textarea
-              value={prompt}
-              onChange={(event) => {
-                setPrompt(event.target.value);
-                if (error) setError(undefined);
-              }}
-              onKeyDown={(event) => {
-                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-                  event.preventDefault();
-                  void askAgent();
-                }
-              }}
-              placeholder="Ask anything about this Salesforce org…"
-            />
-            <button
-              className="button button-primary"
-              type="button"
-              disabled={
-                !status.configured || !status.dataConsentGranted || !prompt.trim() || asking
-              }
-              onClick={() => void askAgent()}
-            >
-              {asking ? 'Working…' : 'Ask AI Agent'}
-            </button>
-          </div>
-          <div className="ai-composer-meta">
-            <span>
-              {prompt.length.toLocaleString()} / {MAX_PROMPT_CHARACTERS.toLocaleString()} characters
-            </span>
-            {messages.length >= MAX_CHAT_MESSAGES - 2 && (
-              <strong>This chat is nearly full. Use Clear Chat before starting a new topic.</strong>
+            <div className="ai-composer-meta">
+              <span>
+                {prompt.length.toLocaleString()} / {MAX_PROMPT_CHARACTERS.toLocaleString()}{' '}
+                characters
+              </span>
+              {messages.length >= MAX_CHAT_MESSAGES - 2 && (
+                <strong>
+                  This chat is nearly full. Use Clear Chat before starting a new topic.
+                </strong>
+              )}
+            </div>
+            {!status.configured && (
+              <p className="muted ai-chat-note">
+                Connect a provider once to start asking questions.
+              </p>
             )}
-          </div>
-          {!status.configured && (
-            <p className="muted ai-chat-note">Connect a provider once to start asking questions.</p>
-          )}
-          <p className="muted ai-chat-note">
-            Answers are not stored. Relevant accessible results are sent directly to your selected
-            provider; AI Agent cannot write records or run Apex.
-          </p>
-          <p className="muted ai-chat-note ai-disclaimer">
-            AI can make mistakes. Verify important Salesforce data, calculations, and
-            recommendations before taking action.
-          </p>
-        </section>
-      )}
+            <p className="muted ai-chat-note">
+              Answers are not stored. Relevant accessible results are sent directly to your selected
+              provider; AI Agent cannot write records or run Apex.
+            </p>
+            <p className="muted ai-chat-note ai-disclaimer">
+              AI can make mistakes. Verify important Salesforce data, calculations, and
+              recommendations before taking action.
+            </p>
+          </section>
+        ))}
     </div>
   );
 }
