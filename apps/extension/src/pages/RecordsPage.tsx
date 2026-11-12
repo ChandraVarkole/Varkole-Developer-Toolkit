@@ -1,18 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   OrgIdentity,
   QueryPage,
   QueryRecord,
+  RecordInspection,
   SalesforceFieldSummary,
   SalesforceObjectDescribe,
   SalesforceObjectSummary,
 } from '@varkole/shared';
 import { sendMessage } from '../api';
 import { ObjectFieldPicker } from '../components/ObjectFieldPicker';
-import { sortSalesforceObjects } from '../components/object-suggestions';
 import { QueryResults } from '../components/QueryResults';
 import { EmptyState, InlineError } from '../components/Status';
-import { useAutoLoad } from '../useAutoLoad';
 import { buildRecordsQuery, inferObjectFromRecordId } from './records-query';
 import { buildRecordFieldRows } from './record-fields';
 
@@ -27,7 +26,6 @@ export function RecordsPage({
   const [fields, setFields] = useState('');
   const [recordId, setRecordId] = useState(initialRecordId ?? '');
   const [objects, setObjects] = useState<SalesforceObjectSummary[]>([]);
-  const [resolvedObjectApiName, setResolvedObjectApiName] = useState<string>();
   const [describe, setDescribe] = useState<SalesforceObjectDescribe>();
   const [result, setResult] = useState<QueryPage>();
   const [error, setError] = useState<string>();
@@ -39,76 +37,51 @@ export function RecordsPage({
     () => inferObjectFromRecordId(recordId, objects),
     [objects, recordId],
   );
-  const recordObjectApiName = inferredObject?.name ?? resolvedObjectApiName;
   const activeDescribe = describe?.name === objectApiName ? describe : undefined;
   const recordMode = Boolean(recordId.trim());
 
   useEffect(() => {
-    if (recordObjectApiName && recordObjectApiName !== objectApiName) {
-      setObjectApiName(recordObjectApiName);
+    if (inferredObject && inferredObject.name !== objectApiName) {
+      setObjectApiName(inferredObject.name);
       setResult(undefined);
     }
-  }, [objectApiName, recordObjectApiName]);
+  }, [inferredObject, objectApiName]);
+
+  const inspectRecord = useCallback(
+    async (targetRecordId: string) => {
+      if (!org) return;
+      setLoadingContext(true);
+      setLoading(true);
+      setError(undefined);
+      try {
+        const inspection = await sendMessage<RecordInspection>({
+          type: 'INSPECT_RECORD',
+          payload: { key: org.key, recordId: targetRecordId },
+        });
+        setRecordId(targetRecordId);
+        setObjectApiName(inspection.objectApiName);
+        setDescribe(inspection.describe);
+        setResult({
+          totalSize: 1,
+          done: true,
+          records: [inspection.record],
+          elapsedMs: inspection.elapsedMs,
+          ...(inspection.apiUsage ? { apiUsage: inspection.apiUsage } : {}),
+        });
+        setPageNumber(1);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : 'Salesforce could not load the record.');
+      } finally {
+        setLoading(false);
+        setLoadingContext(false);
+      }
+    },
+    [org],
+  );
 
   useEffect(() => {
-    if (!org || !initialRecordId) return;
-    let active = true;
-    setLoadingContext(true);
-    setResolvedObjectApiName(undefined);
-    void Promise.allSettled([
-      sendMessage<SalesforceObjectSummary[]>({
-        type: 'GET_OBJECTS',
-        payload: { key: org.key },
-      }),
-      sendMessage<string>({
-        type: 'RESOLVE_RECORD_OBJECT',
-        payload: { key: org.key, recordId: initialRecordId },
-      }),
-    ])
-      .then(([objectsResult, resolverResult]) => {
-        if (!active) return;
-        const nextObjects =
-          objectsResult.status === 'fulfilled' ? sortSalesforceObjects(objectsResult.value) : [];
-        setObjects(nextObjects);
-        if (resolverResult.status === 'fulfilled') {
-          setResolvedObjectApiName(resolverResult.value);
-          return;
-        }
-        if (!inferObjectFromRecordId(initialRecordId, nextObjects)) {
-          const cause = resolverResult.reason as unknown;
-          setError(
-            cause instanceof Error ? cause.message : 'Salesforce could not identify the record.',
-          );
-        }
-      })
-      .finally(() => {
-        if (active) setLoadingContext(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [initialRecordId, org]);
-
-  useEffect(() => {
-    if (!org || !initialRecordId || !objectApiName) return;
-    let active = true;
-    void sendMessage<SalesforceObjectDescribe>({
-      type: 'DESCRIBE_OBJECT',
-      payload: { key: org.key, objectApiName },
-    })
-      .then((next) => {
-        if (active) setDescribe(next);
-      })
-      .catch((cause: unknown) => {
-        if (active)
-          setError(
-            cause instanceof Error ? cause.message : 'Salesforce could not load field metadata.',
-          );
-      });
-    return () => {
-      active = false;
-    };
-  }, [initialRecordId, objectApiName, org]);
+    if (initialRecordId) void inspectRecord(initialRecordId);
+  }, [initialRecordId, inspectRecord]);
 
   async function run() {
     if (!org) return;
@@ -143,14 +116,6 @@ export function RecordsPage({
       setRequestId(undefined);
     }
   }
-
-  const contextReady = !initialRecordId || recordObjectApiName === objectApiName;
-  useAutoLoad(
-    run,
-    org && initialRecordId && contextReady
-      ? `${org.key}:${objectApiName}:${initialRecordId}`
-      : undefined,
-  );
 
   if (!org) {
     return (
@@ -207,8 +172,8 @@ export function RecordsPage({
             <button
               className="button button-primary"
               type="button"
-              disabled={loading || !objectApiName}
-              onClick={() => void run()}
+              disabled={loading}
+              onClick={() => void inspectRecord(initialRecordId)}
             >
               {loading ? 'Refreshing…' : 'Refresh inspection'}
             </button>
@@ -260,8 +225,8 @@ export function RecordsPage({
               <button
                 className="button button-primary"
                 type="button"
-                disabled={!objectApiName || (!recordMode && !fields.trim())}
-                onClick={() => void run()}
+                disabled={recordMode ? false : !objectApiName || !fields.trim()}
+                onClick={() => void (recordMode ? inspectRecord(recordId) : run())}
               >
                 {recordMode
                   ? result

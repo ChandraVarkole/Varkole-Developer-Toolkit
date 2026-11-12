@@ -90,15 +90,30 @@ describe('SalesforceRestClient describe', () => {
     ]);
   });
 
-  it('resolves a custom record object through the permission-aware UI API', async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(
-        JSON.stringify({ id: 'a001G00000ABCdeQAH', apiName: 'Invoice__c', fields: {} }),
-        {
+  it('inspects every accessible field on a custom record through dedicated record APIs', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation((input) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes('/ui-api/records/')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ id: 'a001G00000ABCdeQAH', apiName: 'Invoice__c', fields: {} }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+      if (url.endsWith('/sobjects/Invoice__c/describe')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ name: 'Invoice__c', label: 'Invoice', fields: [] }), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ Id: 'a001G00000ABCdeQAH', Name: 'INV-100', Total__c: 125 }), {
           headers: { 'Content-Type': 'application/json' },
-        },
-      ),
-    );
+        }),
+      );
+    });
     const client = new SalesforceRestClient({
       transport: new SalesforceTransport({
         instanceUrl: 'https://acme.my.salesforce.com',
@@ -108,15 +123,75 @@ describe('SalesforceRestClient describe', () => {
       apiVersion: '68.0',
     });
 
-    await expect(client.resolveRecordObjectApiName('a001G00000ABCdeQAH')).resolves.toBe(
-      'Invoice__c',
+    await expect(client.inspectRecord('a001G00000ABCdeQAH')).resolves.toMatchObject({
+      objectApiName: 'Invoice__c',
+      describe: { name: 'Invoice__c', label: 'Invoice' },
+      record: { Id: 'a001G00000ABCdeQAH', Name: 'INV-100', Total__c: 125 },
+    });
+    const urls = fetchImpl.mock.calls.map(([input]) =>
+      typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
     );
-    const request = fetchImpl.mock.calls[0]?.[0];
-    const url =
-      typeof request === 'string' ? request : request instanceof URL ? request.href : request?.url;
-    expect(url).toContain(
-      '/services/data/v68.0/ui-api/records/a001G00000ABCdeQAH?layoutTypes=Compact&modes=View',
+    expect(urls).toContain(
+      'https://acme.my.salesforce.com/services/data/v68.0/sobjects/Invoice__c/a001G00000ABCdeQAH',
     );
+  });
+
+  it('falls back to the global key-prefix map when UI API resolution is unavailable', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation((input) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes('/ui-api/records/')) {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ errorCode: 'NOT_FOUND', message: 'Unavailable' }]), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      if (url.endsWith('/sobjects')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              sobjects: [
+                {
+                  name: 'Invoice__c',
+                  label: 'Invoice',
+                  keyPrefix: 'a00',
+                  custom: true,
+                  queryable: true,
+                  searchable: true,
+                },
+              ],
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+      if (url.endsWith('/describe')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ name: 'Invoice__c', label: 'Invoice', fields: [] }), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ Id: 'a001G00000ABCdeQAH', Name: 'INV-100' }), {
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+    const client = new SalesforceRestClient({
+      transport: new SalesforceTransport({
+        instanceUrl: 'https://acme.my.salesforce.com',
+        accessToken: 'secret',
+        fetchImpl,
+      }),
+      apiVersion: '68.0',
+    });
+
+    await expect(client.inspectRecord('a001G00000ABCdeQAH')).resolves.toMatchObject({
+      objectApiName: 'Invoice__c',
+      record: { Name: 'INV-100' },
+    });
   });
 
   it('reads report and dashboard analytics through bounded read-only endpoints', async () => {

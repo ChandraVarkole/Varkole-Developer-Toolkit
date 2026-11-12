@@ -133,9 +133,9 @@ async function handleRequest(request: UiRequest): Promise<unknown> {
       return withRestClient(request.payload.key, (client, _org, signal) =>
         client.listObjects(signal),
       );
-    case 'RESOLVE_RECORD_OBJECT':
+    case 'INSPECT_RECORD':
       return withRestClient(request.payload.key, (client, _org, signal) =>
-        client.resolveRecordObjectApiName(request.payload.recordId, signal),
+        client.inspectRecord(request.payload.recordId, signal),
       );
     case 'DESCRIBE_OBJECT':
       return withRestClient(request.payload.key, (client, _org, signal) =>

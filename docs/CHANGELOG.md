@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.17 — Direct record retrieval
+
+- Replaced the Record Inspector's multi-effect `FIELDS(ALL)` sequence with one background
+  inspection operation that resolves the object, retrieves all accessible record fields through
+  Salesforce sObject Rows, and loads Describe metadata.
+- Added a global key-prefix fallback when UI API object resolution is unavailable.
+- Made pasted record IDs use the same reliable inspection operation as current-page records.
+
 ## 0.7.16 — Custom-object record inspection
 
 - Added a permission-aware Salesforce UI API fallback that resolves an object API name directly

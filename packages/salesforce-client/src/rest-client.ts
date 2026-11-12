@@ -5,6 +5,7 @@ import type {
   OrgLimit,
   QueryPage,
   QueryRecord,
+  RecordInspection,
   SalesforceChildRelationship,
   SalesforceFieldSummary,
   SalesforceObjectDescribe,
@@ -156,6 +157,35 @@ export class SalesforceRestClient {
       throw new Error('Salesforce did not return the object API name for this record.');
     }
     return result.data.apiName;
+  }
+
+  async inspectRecord(recordId: string, signal?: AbortSignal): Promise<RecordInspection> {
+    const started = performance.now();
+    let objectApiName: string;
+    try {
+      objectApiName = await this.resolveRecordObjectApiName(recordId, signal);
+    } catch (resolutionError) {
+      const prefix = recordId.slice(0, 3).toLowerCase();
+      const matchingObject = (await this.listObjects(signal)).find(
+        (object) => object.keyPrefix?.toLowerCase() === prefix,
+      );
+      if (!matchingObject) throw resolutionError;
+      objectApiName = matchingObject.name;
+    }
+    const [describe, recordResult] = await Promise.all([
+      this.describeObject(objectApiName, signal),
+      this.transport.get<QueryRecord>(
+        `${this.apiRoot}/sobjects/${encodeURIComponent(objectApiName)}/${encodeURIComponent(recordId)}`,
+        signal,
+      ),
+    ]);
+    return {
+      objectApiName,
+      describe,
+      record: recordResult.data,
+      elapsedMs: Math.round(performance.now() - started),
+      ...(recordResult.apiUsage ? { apiUsage: recordResult.apiUsage } : {}),
+    };
   }
 
   async describeObject(

@@ -32,6 +32,14 @@ export interface QueryPage {
   elapsedMs: number;
 }
 
+export interface RecordInspection {
+  objectApiName: string;
+  describe: SalesforceObjectDescribe;
+  record: QueryRecord;
+  elapsedMs: number;
+  apiUsage?: string;
+}
+
 export interface MetadataFileProperty {
   fullName: string;
   type: string;
@@ -185,7 +193,7 @@ export type UiRequest =
   | { type: 'DISCONNECT_ORG'; payload: { key: string } }
   | { type: 'GET_ORG_INFO'; payload: { key: string } }
   | { type: 'GET_OBJECTS'; payload: { key: string } }
-  | { type: 'RESOLVE_RECORD_OBJECT'; payload: { key: string; recordId: string } }
+  | { type: 'INSPECT_RECORD'; payload: { key: string; recordId: string } }
   | { type: 'DESCRIBE_OBJECT'; payload: { key: string; objectApiName: string } }
   | { type: 'GET_TABS'; payload: { key: string } }
   | { type: 'GET_EXTERNAL_CLIENT_APPS'; payload: { key: string; requestId: string } }

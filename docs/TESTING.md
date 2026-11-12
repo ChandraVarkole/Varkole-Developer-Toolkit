@@ -30,7 +30,7 @@
     automatically, shows every accessible field including blank values, searches label/API
     name/type/value, and Refresh inspection reloads changes. Navigate between records while the
     drawer is open and verify the inspector follows the URL. Also test a pasted 15/18-character ID
-    and an inaccessible record.
+    and an inaccessible record. Confirm the detail list appears without requiring Load or Refresh.
 13. In Export, preview a query and download CSV/JSON; verify relationship fields are flattened, CSV quotes are escaped and formula-like values are prefixed safely.
 14. Open Logs, Coverage, Users, Access, Installed Packages, Flows, Metadata, Integrations and App
     Tabs. Verify supported pages auto-load and insufficient permissions are reported without
