@@ -11,10 +11,11 @@ import {
   testRunProgressQuery,
   type ApexTestRunProgress,
 } from './apex-test-run';
-import { addCoveragePercentages } from './coverage-utils';
+import { addCoveragePercentages, orgWideCoveragePercentage } from './coverage-utils';
 
 const COVERAGE_QUERY =
   'SELECT ApexClassOrTrigger.Name, NumLinesCovered, NumLinesUncovered FROM ApexCodeCoverageAggregate ORDER BY ApexClassOrTrigger.Name LIMIT 200';
+const ORG_WIDE_COVERAGE_QUERY = 'SELECT PercentCovered FROM ApexOrgWideCoverage';
 
 const COVERAGE_LABELS = {
   Name: 'File',
@@ -35,6 +36,7 @@ const FAILURE_LABELS = {
 
 export function CoveragePage({ org }: { org?: OrgIdentity | undefined }) {
   const [coverage, setCoverage] = useState<QueryPage>();
+  const [overallCoverage, setOverallCoverage] = useState<number>();
   const [coverageError, setCoverageError] = useState<string>();
   const [coverageLoading, setCoverageLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -50,9 +52,16 @@ export function CoveragePage({ org }: { org?: OrgIdentity | undefined }) {
     if (!org) return;
     setCoverageLoading(true);
     setCoverageError(undefined);
+    setOverallCoverage(undefined);
     try {
-      const page = await runToolingQuery(org, COVERAGE_QUERY);
+      const [page, nextOverallCoverage] = await Promise.all([
+        runToolingQuery(org, COVERAGE_QUERY),
+        runToolingQuery(org, ORG_WIDE_COVERAGE_QUERY)
+          .then(orgWideCoveragePercentage)
+          .catch(() => undefined),
+      ]);
       setCoverage(addCoveragePercentages(page));
+      setOverallCoverage(nextOverallCoverage);
     } catch (cause) {
       setCoverageError(
         cause instanceof Error ? cause.message : 'Salesforce could not load code coverage.',
@@ -255,15 +264,48 @@ export function CoveragePage({ org }: { org?: OrgIdentity | undefined }) {
 
       <InlineError message={coverageError} />
       {coverage && (
-        <QueryResults
-          result={coverage}
-          pageNumber={1}
-          modeLabel="Tooling"
-          loading={coverageLoading}
-          columnLabels={COVERAGE_LABELS}
-        />
+        <>
+          <CoverageSummary percentage={overallCoverage} />
+          <QueryResults
+            result={coverage}
+            pageNumber={1}
+            modeLabel="Tooling"
+            loading={coverageLoading}
+            columnLabels={COVERAGE_LABELS}
+            expandTable
+          />
+        </>
       )}
     </div>
+  );
+}
+
+function CoverageSummary({ percentage }: { percentage?: number | undefined }) {
+  const display = percentage === undefined ? 'Unavailable' : `${percentage.toFixed(0)}%`;
+  const status = percentage === undefined ? 'unknown' : percentage >= 75 ? 'passing' : 'below';
+
+  return (
+    <section className={`coverage-summary ${status}`} aria-label="Overall code coverage">
+      <div>
+        <span className="eyebrow">Overall org coverage</span>
+        <strong>{display}</strong>
+      </div>
+      <div className="coverage-summary-detail">
+        <span>Salesforce org-wide Apex coverage</span>
+        {percentage !== undefined && (
+          <div className="coverage-summary-track" aria-hidden="true">
+            <span style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }} />
+          </div>
+        )}
+        <small>
+          {percentage === undefined
+            ? 'Salesforce did not return an org-wide coverage value.'
+            : percentage >= 75
+              ? 'At or above the 75% deployment requirement.'
+              : 'Below the 75% deployment requirement.'}
+        </small>
+      </div>
+    </section>
   );
 }
 

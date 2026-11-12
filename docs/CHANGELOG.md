@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.18 — Org-wide coverage and expanded inventories
+
+- Added Salesforce's org-wide Apex coverage percentage above the per-file coverage table, including
+  a compact 75% deployment-baseline indicator.
+- Removed the fixed internal table-height limit from Code Coverage, Users, Access Assignments,
+  Installed Packages, and Flows so their result grids continue naturally down the page.
+
 ## 0.7.17 — Direct record retrieval
 
 - Replaced the Record Inspector's multi-effect `FIELDS(ALL)` sequence with one background

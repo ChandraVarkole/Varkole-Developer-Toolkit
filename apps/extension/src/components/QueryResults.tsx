@@ -12,6 +12,7 @@ export function QueryResults({
   recordBaseUrl,
   columnLabels,
   hiddenColumns,
+  expandTable = false,
 }: {
   result: QueryPage;
   pageNumber: number;
@@ -21,6 +22,7 @@ export function QueryResults({
   recordBaseUrl?: string | undefined;
   columnLabels?: Record<string, string> | undefined;
   hiddenColumns?: string[] | undefined;
+  expandTable?: boolean | undefined;
 }) {
   const [filter, setFilter] = useState('');
   const [sort, setSort] = useState<TableSort>();
@@ -44,7 +46,7 @@ export function QueryResults({
   );
 
   return (
-    <section className="results-card">
+    <section className={`results-card ${expandTable ? 'results-card-expanded' : ''}`}>
       <div className="results-toolbar">
         <div className="result-stats">
           <strong>{result.totalSize.toLocaleString()}</strong> total rows

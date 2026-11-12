@@ -7,6 +7,7 @@ export const READ_ONLY_MODULES: Record<string, ReadOnlyQueryConfig> = {
     title: 'Users',
     eyebrow: 'Administration · read-only',
     actionLabel: 'Load users',
+    expandTable: true,
     mode: 'rest',
     columnLabels: {
       Name: 'Name',
@@ -24,6 +25,7 @@ export const READ_ONLY_MODULES: Record<string, ReadOnlyQueryConfig> = {
     title: 'Access Assignments',
     eyebrow: 'Administration · read-only',
     actionLabel: 'Load assignments',
+    expandTable: true,
     mode: 'rest',
     columnLabels: {
       'Assignee.Name': 'User',
@@ -38,6 +40,7 @@ export const READ_ONLY_MODULES: Record<string, ReadOnlyQueryConfig> = {
     title: 'Installed Packages',
     eyebrow: 'Setup inventory · read-only',
     actionLabel: 'Load packages',
+    expandTable: true,
     mode: 'tooling',
     transformResult: formatInstalledPackages,
     columnLabels: {
@@ -56,6 +59,7 @@ export const READ_ONLY_MODULES: Record<string, ReadOnlyQueryConfig> = {
     title: 'Flows',
     eyebrow: 'Automation inventory · read-only',
     actionLabel: 'Load flows',
+    expandTable: true,
     mode: 'tooling',
     setupPath: SETUP_PATHS.flows,
     transformResult: formatFlows,

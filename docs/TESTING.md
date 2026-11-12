@@ -45,8 +45,10 @@
     acknowledgement and exact typed confirmation are both required; do not test production writes.
 17. In Code Coverage, click Run All Tests in a disposable sandbox, acknowledge the org-wide run,
     and verify queued/running progress updates without reloading. Confirm failed methods appear
-    inline and coverage refreshes after a terminal status. Verify Production requires the exact
-    `RUN ALL TESTS` confirmation; do not start a Production test run during routine validation.
+    inline and coverage refreshes after a terminal status. Compare the displayed overall percentage
+    with Salesforce's org-wide coverage and verify the per-file table continues down the page.
+    Verify Production requires the exact `RUN ALL TESTS` confirmation; do not start a Production
+    test run during routine validation.
 18. In Import, use disposable sandbox records to test CSV upload and paste, quoted commas/newlines,
     duplicate headers, uneven rows, unmapped fields, automatic label/API-name mapping, `#NULL!`,
     create, update and delete. Verify CRUD/FLS, validation and automation errors appear per row;

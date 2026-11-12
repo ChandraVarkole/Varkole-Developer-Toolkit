@@ -26,6 +26,16 @@ export function addCoveragePercentage(record: QueryRecord): QueryRecord {
   };
 }
 
+export function orgWideCoveragePercentage(page: QueryPage): number | undefined {
+  const value = page.records[0]?.PercentCovered;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
 function numericValue(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }

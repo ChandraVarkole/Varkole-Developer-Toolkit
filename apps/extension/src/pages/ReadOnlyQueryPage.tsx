@@ -22,6 +22,7 @@ export interface ReadOnlyQueryConfig {
       }
     | undefined;
   setupPath?: string | undefined;
+  expandTable?: boolean | undefined;
 }
 
 export function ReadOnlyQueryPage({
@@ -143,6 +144,7 @@ export function ReadOnlyQueryPage({
           onNext={() => void nextPage()}
           recordBaseUrl={org.instanceUrl}
           columnLabels={config.columnLabels}
+          expandTable={config.expandTable}
         />
       )}
     </div>
