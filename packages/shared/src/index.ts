@@ -130,6 +130,14 @@ export interface OrgLimit {
   Remaining: number;
 }
 
+export interface OrgLicenseUsage {
+  name: string;
+  status: string;
+  totalLicenses: number | null;
+  usedLicenses: number | null;
+  lastUpdated?: string;
+}
+
 export interface OrgInfo {
   id: string;
   name: string;
@@ -145,6 +153,7 @@ export interface OrgInfo {
   displayName: string;
   limits: Record<string, OrgLimit>;
   apiUsage?: string;
+  licenseUsage?: OrgLicenseUsage[];
 }
 
 export type ImportOperation = 'insert' | 'update' | 'delete';

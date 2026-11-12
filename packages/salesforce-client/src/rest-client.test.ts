@@ -302,6 +302,34 @@ describe('SalesforceRestClient describe', () => {
           }),
         );
       }
+      if (url.includes('UserLicense')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              totalSize: 2,
+              done: true,
+              records: [
+                {
+                  Name: 'SalesforcePlatform',
+                  MasterLabel: 'Salesforce Platform',
+                  Status: 'Active',
+                  TotalLicenses: 25,
+                  UsedLicenses: 10,
+                  UsedLicensesLastUpdated: '2026-11-12T12:00:00.000+0000',
+                },
+                {
+                  Name: 'Salesforce',
+                  MasterLabel: 'Salesforce',
+                  Status: 'Active',
+                  TotalLicenses: 20,
+                  UsedLicenses: 18,
+                },
+              ],
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
       return Promise.resolve(
         new Response(
           JSON.stringify({
@@ -342,6 +370,86 @@ describe('SalesforceRestClient describe', () => {
     ).resolves.toMatchObject({
       releaseName: "Spring '26",
       latestApiVersion: '66.0',
+      licenseUsage: [
+        {
+          name: 'Salesforce',
+          status: 'Active',
+          totalLicenses: 20,
+          usedLicenses: 18,
+        },
+        {
+          name: 'Salesforce Platform',
+          status: 'Active',
+          totalLicenses: 25,
+          usedLicenses: 10,
+          lastUpdated: '2026-11-12T12:00:00.000+0000',
+        },
+      ],
     });
+  });
+
+  it('keeps org info available when the user cannot read license usage', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation((input) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes('UserLicense')) {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ errorCode: 'INSUFFICIENT_ACCESS', message: 'Denied' }]), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      if (url.endsWith('/services/data/')) {
+        return Promise.resolve(
+          new Response(JSON.stringify([]), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      if (url.endsWith('/limits')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({}), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            totalSize: 1,
+            done: true,
+            records: [
+              {
+                Id: '00D000000000001AAA',
+                Name: 'Acme',
+                OrganizationType: 'Enterprise Edition',
+                IsSandbox: false,
+              },
+            ],
+          }),
+          { headers: { 'Content-Type': 'application/json' } },
+        ),
+      );
+    });
+    const client = new SalesforceRestClient({
+      transport: new SalesforceTransport({
+        instanceUrl: 'https://acme.my.salesforce.com',
+        accessToken: 'secret',
+        fetchImpl,
+      }),
+      apiVersion: '65.0',
+    });
+
+    const info = await client.orgInfo(
+      {
+        username: 'dev@example.com',
+        displayName: 'Developer',
+        instanceUrl: 'https://acme.my.salesforce.com',
+      },
+      '65.0',
+    );
+
+    expect(info.name).toBe('Acme');
+    expect(info.licenseUsage).toBeUndefined();
   });
 });

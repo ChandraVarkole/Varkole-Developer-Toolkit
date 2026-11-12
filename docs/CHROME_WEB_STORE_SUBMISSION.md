@@ -1,7 +1,7 @@
 # Chrome Web Store submission worksheet
 
 This worksheet contains the proposed dashboard entries for **Varkole Developer Toolkit BETA**
-version 0.7.18. Re-check every entry against the uploaded ZIP before submission.
+version 0.7.19. Re-check every entry against the uploaded ZIP before submission.
 
 ## Submission gate
 
@@ -15,10 +15,10 @@ Do not select **Submit for review** until all of these are true:
 
 ## Package
 
-- File: `apps/extension/varkole-developer-toolkit-v0.7.18-beta.zip`
-- Manifest version: `0.7.18`
+- File: `apps/extension/varkole-developer-toolkit-v0.7.19-beta.zip`
+- Manifest version: `0.7.19`
 - Expected SHA-256:
-  `a3d08680966232be60f76e268fbc7e74411fe18182349008d5793b927b995fab`
+  `28f316636f293e4df0218eb10f97a57d28310d34a779fe112255d12f09071e8b`
 - `manifest.json` is at the ZIP root.
 
 ## Store listing

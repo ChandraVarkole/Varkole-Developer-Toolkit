@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { OrgIdentity, OrgInfo } from '@varkole/shared';
+import type { OrgIdentity, OrgInfo, OrgLicenseUsage } from '@varkole/shared';
 import { sendMessage } from '../api';
 import { EmptyState, InlineError } from '../components/Status';
 
@@ -115,10 +115,116 @@ export function OrgInfoPage({ org }: { org?: OrgIdentity | undefined }) {
               <p className="muted">Limits are unavailable for this user or org.</p>
             )}
           </section>
+
+          <LicenseUsageSection licenses={info.licenseUsage} />
         </>
       )}
     </div>
   );
+}
+
+function LicenseUsageSection({ licenses }: { licenses?: OrgLicenseUsage[] | undefined }) {
+  return (
+    <section className="section-card license-usage-section" aria-labelledby="license-usage-title">
+      <div className="section-title">
+        <div>
+          <h2 id="license-usage-title">License usage</h2>
+          <p>Salesforce user licenses assigned to active users.</p>
+        </div>
+      </div>
+      {licenses === undefined ? (
+        <p className="muted">
+          License usage is unavailable for this user. Salesforce requires View Setup and
+          Configuration access.
+        </p>
+      ) : licenses.length === 0 ? (
+        <p className="muted">Salesforce returned no user-license records.</p>
+      ) : (
+        <div className="license-table-scroll">
+          <table className="license-table">
+            <thead>
+              <tr>
+                <th>License</th>
+                <th>Status</th>
+                <th>Used</th>
+                <th>Available</th>
+                <th>Total</th>
+                <th>Usage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {licenses.map((license, index) => {
+                const available = availableLicenses(license);
+                const percent = licensePercent(license);
+                return (
+                  <tr key={`${license.name}:${license.status}:${index}`}>
+                    <td>
+                      <strong>{license.name}</strong>
+                    </td>
+                    <td>
+                      <span
+                        className={`license-status ${license.status.toLowerCase() === 'active' ? 'active' : ''}`}
+                      >
+                        {license.status}
+                      </span>
+                    </td>
+                    <td title={license.lastUpdated ? `Updated ${license.lastUpdated}` : undefined}>
+                      {formatLicenseCount(license.usedLicenses)}
+                    </td>
+                    <td>{formatLicenseCount(available)}</td>
+                    <td>{formatLicenseCount(license.totalLicenses)}</td>
+                    <td>
+                      {percent === undefined ? (
+                        <span className="muted">Not available</span>
+                      ) : (
+                        <div
+                          className="license-progress"
+                          role="progressbar"
+                          aria-label={`${license.name} license usage`}
+                          aria-valuenow={percent}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                        >
+                          <span style={{ width: `${percent}%` }} />
+                          <small>{percent.toFixed(0)}%</small>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function availableLicenses(license: OrgLicenseUsage): number | null {
+  if (
+    license.totalLicenses === null ||
+    license.usedLicenses === null ||
+    license.totalLicenses < 0
+  ) {
+    return null;
+  }
+  return Math.max(0, license.totalLicenses - license.usedLicenses);
+}
+
+function licensePercent(license: OrgLicenseUsage): number | undefined {
+  if (
+    license.totalLicenses === null ||
+    license.usedLicenses === null ||
+    license.totalLicenses <= 0
+  ) {
+    return undefined;
+  }
+  return Math.min(100, Math.max(0, (license.usedLicenses / license.totalLicenses) * 100));
+}
+
+function formatLicenseCount(value: number | null): string {
+  return value === null ? 'Not returned' : value.toLocaleString();
 }
 
 function Detail({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {

@@ -1,6 +1,7 @@
 import type {
   ImportOperation,
   ImportRecordResult,
+  OrgLicenseUsage,
   OrgInfo,
   OrgLimit,
   QueryPage,
@@ -28,6 +29,15 @@ interface OrganizationRecord extends QueryRecord {
   InstanceName?: string;
   IsSandbox: boolean;
   FiscalYearStartMonth?: number;
+}
+
+interface UserLicenseRecord extends QueryRecord {
+  Name?: string;
+  MasterLabel?: string;
+  Status?: string;
+  TotalLicenses?: number | null;
+  UsedLicenses?: number | null;
+  UsedLicensesLastUpdated?: string;
 }
 
 interface RawDescribeResponse {
@@ -320,7 +330,7 @@ export class SalesforceRestClient {
     const unavailableLimits: { limits: Record<string, OrgLimit>; apiUsage?: string } = {
       limits: {},
     };
-    const [orgPage, limitResult, versions] = await Promise.all([
+    const [orgPage, limitResult, versions, licensePage] = await Promise.all([
       this.query(
         'SELECT Id, Name, OrganizationType, InstanceName, IsSandbox, FiscalYearStartMonth FROM Organization LIMIT 1',
         signal,
@@ -330,6 +340,10 @@ export class SalesforceRestClient {
         .get<RawApiVersion[]>('/services/data/', signal)
         .then((result) => result.data)
         .catch(() => []),
+      this.query(
+        'SELECT Name, MasterLabel, Status, TotalLicenses, UsedLicenses, UsedLicensesLastUpdated FROM UserLicense ORDER BY MasterLabel ASC',
+        signal,
+      ).catch(() => undefined),
     ]);
     const org = orgPage.records[0] as OrganizationRecord | undefined;
     if (!org) throw new Error('Salesforce did not return an Organization record.');
@@ -351,8 +365,26 @@ export class SalesforceRestClient {
       displayName: identity.displayName,
       limits: limitResult.limits,
       ...(limitResult.apiUsage ? { apiUsage: limitResult.apiUsage } : {}),
+      ...(licensePage ? { licenseUsage: formatLicenseUsage(licensePage.records) } : {}),
     };
   }
+}
+
+function formatLicenseUsage(records: QueryRecord[]): OrgLicenseUsage[] {
+  return records
+    .map((record) => record as UserLicenseRecord)
+    .map((record) => ({
+      name: record.MasterLabel?.trim() || record.Name?.trim() || 'Unnamed license',
+      status: record.Status?.trim() || 'Unknown',
+      totalLicenses: finiteNumberOrNull(record.TotalLicenses),
+      usedLicenses: finiteNumberOrNull(record.UsedLicenses),
+      ...(record.UsedLicensesLastUpdated ? { lastUpdated: record.UsedLicensesLastUpdated } : {}),
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function finiteNumberOrNull(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function validateImportRequest(

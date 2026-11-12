@@ -15,7 +15,9 @@
 3. Confirm the org appears without any Varkole login or OAuth prompt, then verify the selected `sid` is not persisted or exposed.
 4. Run a valid REST query, an empty query, invalid field query, relationship query, and a query over 2,000 rows; page once and Stop a slow request.
 5. Run a valid and unauthorized Tooling query.
-6. Open Org Info and compare organization ID/name/environment/API version and limits with Salesforce.
+6. Open Org Info and compare organization ID/name/environment/API version, limits, and user-license
+   used/available totals with Salesforce Setup. Repeat with a user without View Setup and
+   Configuration and confirm only the license card becomes unavailable.
 7. Connect a second org/user and switch repeatedly; verify no data/result/token crosses org boundaries.
 8. Suspend/restart the MV3 service worker and verify the live browser session is recovered without reconnecting.
 9. Disconnect a browser-session org and verify Salesforce itself stays signed in. Separately verify OAuth fallback revocation.

@@ -1623,6 +1623,65 @@ code,
   margin-top: 6px;
 }
 
+.license-usage-section .section-title {
+  margin-bottom: 14px;
+}
+.license-table-scroll {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.license-table td:first-child {
+  min-width: 190px;
+}
+.license-table td:last-child {
+  width: 180px;
+  min-width: 150px;
+}
+.license-status {
+  display: inline-flex;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: #6c7788;
+  background: #edf1f6;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.license-status.active {
+  color: #087555;
+  background: #e8f7f1;
+}
+.license-progress {
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.license-progress::before {
+  width: 100%;
+  height: 7px;
+  grid-column: 1;
+  grid-row: 1;
+  border-radius: 999px;
+  background: #e8eef5;
+  content: '';
+}
+.license-progress > span {
+  height: 7px;
+  z-index: 1;
+  grid-column: 1;
+  grid-row: 1;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0c7be8, #13c7ea);
+}
+.license-progress small {
+  min-width: 31px;
+  color: var(--muted);
+  font-size: 9px;
+  text-align: right;
+}
+
 .mode-select span {
   display: block;
   margin-bottom: 4px;

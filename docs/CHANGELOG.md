@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.19 — Organization license usage
+
+- Added a compact License usage table at the bottom of Org Info with each Salesforce user-license
+  type's status, assigned count, available count, total count, and utilization.
+- Kept the rest of Org Info available when the signed-in user cannot query `UserLicense`; the card
+  explains that Salesforce requires View Setup and Configuration access.
+
 ## 0.7.18 — Org-wide coverage and expanded inventories
 
 - Added Salesforce's org-wide Apex coverage percentage above the per-file coverage table, including
