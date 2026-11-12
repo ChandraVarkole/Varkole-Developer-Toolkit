@@ -8,7 +8,8 @@ directly from the extension to the provider selected by the user.
 - Chrome cookie store: Varkole reads the active org's `sid` through the cookies API. It is used locally as a Salesforce API bearer session and is not copied into persistent storage.
 - Session storage: browser-session domain/source metadata, OAuth fallback access/refresh tokens,
   the selected AI provider key/model configuration, and the user's provider-specific AI data-sharing
-  consent. These values are cleared with the Chrome session or extension reload.
+  consent. AI provider keys expire after at most eight hours. Session values are also cleared by
+  the applicable disconnect/forget controls and can be cleared by Chrome or an extension reload.
 - Local storage: org/user IDs, username/display name, org label, environment, instance URL, API
   version, timestamps, and up to 50 successful query-history entries per org. Query results are not
   stored. Provider API keys are never written to local or sync storage. Version 0.6.5 also deletes

@@ -27,7 +27,8 @@ Varkole may handle the following data only to provide user-requested features:
 ## Storage and retention
 
 - Salesforce session credentials and AI provider keys are held only in Chrome session storage or
-  browser memory. They are not written to local or sync storage.
+  browser memory. AI provider keys expire after at most eight hours. These credentials are not
+  written to local or sync storage.
 - AI data-sharing consent is stored only for the current browser session and selected provider.
 - Organization labels and identity metadata plus up to 50 successful SOQL history entries per org
   can be stored locally in the user's Chrome profile.
@@ -61,8 +62,8 @@ Salesforce content to build advertising profiles. Data is disclosed only to Sale
 the user explicitly enables and approves AI Agent, the selected AI provider, solely to provide the
 user-requested functionality.
 
-Use of information received from Google APIs, when applicable, follows the Chrome Web Store User
-Data Policy, including its Limited Use requirements. Varkole limits collection, use, transfer, and
+The use of information received from Google APIs will adhere to the Chrome Web Store User Data
+Policy, including the Limited Use requirements. Varkole limits collection, use, transfer, and
 retention to what is necessary for its prominent user-facing developer-toolkit features.
 
 ## Permissions

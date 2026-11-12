@@ -54,5 +54,6 @@ must not run write operations in a production org.
 
 ## Support and privacy
 
-- Privacy policy: `docs/PRIVACY_POLICY.md` in the public repository
+- Privacy policy:
+  https://github.com/ChandraVarkole/Varkole-Developer-Toolkit/blob/main/docs/PRIVACY_POLICY.md
 - Support: https://github.com/ChandraVarkole/Varkole-Developer-Toolkit/issues
