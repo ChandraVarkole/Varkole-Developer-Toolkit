@@ -3,6 +3,7 @@ import type { SalesforceObjectSummary } from '@varkole/shared';
 import {
   matchingObjectSuggestions,
   objectDisplayLabel,
+  objectSelectionLabel,
   sortSalesforceObjects,
 } from './object-suggestions';
 
@@ -31,6 +32,23 @@ describe('Salesforce object suggestions', () => {
     expect(matchingObjectSuggestions(objects, 'a')).toEqual([]);
     expect(matchingObjectSuggestions(objects, 'al').map((object) => object.name)).toEqual([
       'Alpha_Missing__c',
+    ]);
+  });
+
+  it('keeps duplicate labels distinct by including their API names', () => {
+    const addresses: SalesforceObjectSummary[] = [
+      { name: 'Address', label: 'Address', custom: false, queryable: true, searchable: true },
+      {
+        name: 'acme__Address__c',
+        label: 'Address',
+        custom: true,
+        queryable: true,
+        searchable: true,
+      },
+    ];
+    expect(addresses.map((object) => objectSelectionLabel(object, addresses))).toEqual([
+      'Address (Address)',
+      'Address (acme__Address__c)',
     ]);
   });
 });

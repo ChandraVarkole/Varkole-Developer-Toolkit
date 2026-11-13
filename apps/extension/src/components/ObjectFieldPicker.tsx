@@ -8,6 +8,7 @@ import { sendMessage } from '../api';
 import {
   matchingObjectSuggestions,
   objectDisplayLabel,
+  objectSelectionLabel,
   sortSalesforceObjects,
 } from './object-suggestions';
 
@@ -20,6 +21,7 @@ export function ObjectFieldPicker({
   onObjectsLoaded,
   onDescribeLoaded,
   showFields = true,
+  expandedFields = false,
 }: {
   org: OrgIdentity;
   objectApiName: string;
@@ -29,6 +31,7 @@ export function ObjectFieldPicker({
   onObjectsLoaded?: ((objects: SalesforceObjectSummary[]) => void) | undefined;
   onDescribeLoaded?: ((describe: SalesforceObjectDescribe) => void) | undefined;
   showFields?: boolean | undefined;
+  expandedFields?: boolean | undefined;
 }) {
   const [objects, setObjects] = useState<SalesforceObjectSummary[]>([]);
   const [objectDraft, setObjectDraft] = useState<string>();
@@ -37,6 +40,8 @@ export function ObjectFieldPicker({
   const [loadingObjects, setLoadingObjects] = useState(true);
   const [loadingFields, setLoadingFields] = useState(false);
   const [error, setError] = useState<string>();
+  const [showObjectSuggestions, setShowObjectSuggestions] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -98,7 +103,7 @@ export function ObjectFieldPicker({
     (object) => object.name.toLowerCase() === objectApiName.trim().toLowerCase(),
   );
   const objectInput =
-    objectDraft ?? (selectedObject ? objectDisplayLabel(selectedObject) : objectApiName);
+    objectDraft ?? (selectedObject ? objectSelectionLabel(selectedObject, objects) : objectApiName);
   const objectSuggestions = useMemo(
     () => matchingObjectSuggestions(objects, objectDraft ?? ''),
     [objectDraft, objects],
@@ -131,8 +136,16 @@ export function ObjectFieldPicker({
     );
   }
 
+  function chooseObject(object: SalesforceObjectSummary) {
+    setObjectDraft(undefined);
+    setShowObjectSuggestions(false);
+    setActiveSuggestion(0);
+    setFieldFilter('');
+    onObjectApiNameChange(object.name);
+  }
+
   return (
-    <div className="schema-assistant">
+    <div className={`schema-assistant ${expandedFields ? 'expanded-fields' : ''}`}>
       <div className="schema-assistant-header">
         <strong>{showFields ? 'Choose object and fields' : 'Choose object'}</strong>
         {loadingObjects && <span className="muted">Loading objects…</span>}
@@ -140,34 +153,81 @@ export function ObjectFieldPicker({
       <div className={`schema-controls ${showFields ? '' : 'single'}`}>
         <label>
           <span>Object</span>
-          <input
-            list={`objects-${org.orgId}`}
-            value={objectInput}
-            onChange={(event) => {
-              const value = event.target.value;
-              const exact = objects.find(
-                (object) =>
-                  objectDisplayLabel(object).toLowerCase() === value.trim().toLowerCase() ||
-                  object.name.toLowerCase() === value.trim().toLowerCase(),
-              );
-              if (exact) {
-                setObjectDraft(undefined);
-                onObjectApiNameChange(exact.name);
-              } else {
-                setObjectDraft(value);
-                if (!value.trim()) onObjectApiNameChange('');
-              }
-            }}
-            placeholder="Start typing object name"
-            autoComplete="off"
-          />
-          <datalist id={`objects-${org.orgId}`}>
-            {objectSuggestions.map((object) => (
-              <option key={object.name} value={objectDisplayLabel(object)}>
-                {object.name}
-              </option>
-            ))}
-          </datalist>
+          <div className="object-combobox">
+            <input
+              value={objectInput}
+              onFocus={() => setShowObjectSuggestions((objectDraft?.trim().length ?? 0) >= 2)}
+              onBlur={() => window.setTimeout(() => setShowObjectSuggestions(false), 100)}
+              onChange={(event) => {
+                const value = event.target.value;
+                const exactIdentity = objects.find(
+                  (object) =>
+                    objectSelectionLabel(object, objects).toLowerCase() ===
+                      value.trim().toLowerCase() ||
+                    object.name.toLowerCase() === value.trim().toLowerCase(),
+                );
+                const exactLabelMatches = objects.filter(
+                  (object) =>
+                    objectDisplayLabel(object).toLowerCase() === value.trim().toLowerCase(),
+                );
+                const exact =
+                  exactIdentity ??
+                  (exactLabelMatches.length === 1 ? exactLabelMatches[0] : undefined);
+                if (exact) {
+                  chooseObject(exact);
+                } else {
+                  setObjectDraft(value);
+                  setActiveSuggestion(0);
+                  setShowObjectSuggestions(value.trim().length >= 2);
+                  if (!value.trim()) onObjectApiNameChange('');
+                }
+              }}
+              onKeyDown={(event) => {
+                if (!showObjectSuggestions || objectSuggestions.length === 0) return;
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  setActiveSuggestion((current) => (current + 1) % objectSuggestions.length);
+                } else if (event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  setActiveSuggestion(
+                    (current) =>
+                      (current - 1 + objectSuggestions.length) % objectSuggestions.length,
+                  );
+                } else if (event.key === 'Enter') {
+                  event.preventDefault();
+                  chooseObject(objectSuggestions[activeSuggestion] ?? objectSuggestions[0]!);
+                } else if (event.key === 'Escape') {
+                  setShowObjectSuggestions(false);
+                }
+              }}
+              placeholder="Start typing object name"
+              autoComplete="off"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={showObjectSuggestions && objectSuggestions.length > 0}
+              aria-controls={`objects-${org.orgId}`}
+            />
+            {showObjectSuggestions && objectSuggestions.length > 0 && (
+              <div className="object-suggestion-list" id={`objects-${org.orgId}`} role="listbox">
+                {objectSuggestions.map((object, index) => (
+                  <button
+                    key={object.name}
+                    type="button"
+                    role="option"
+                    aria-selected={index === activeSuggestion}
+                    className={index === activeSuggestion ? 'active' : ''}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onMouseEnter={() => setActiveSuggestion(index)}
+                    onClick={() => chooseObject(object)}
+                  >
+                    <span>{objectDisplayLabel(object)}</span>
+                    <code>{object.name}</code>
+                    <small>{object.custom ? 'Custom' : 'Standard'}</small>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {objectDraft !== undefined && objectDraft.trim().length < 2 && (
             <small className="input-hint">Type at least 2 characters</small>
           )}

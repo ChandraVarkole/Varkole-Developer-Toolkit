@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.29 — Exact SOQL objects and extension themes
+
+- Replaced the browser datalist in the SOQL object picker with an anchored, keyboard-accessible
+  menu that stays aligned with its input.
+- Kept objects with identical labels distinct by showing their exact API names and Standard or
+  Custom status, preventing fields from one object being loaded for another.
+- Expanded the SOQL available-fields area so substantially more fields remain visible without a
+  small nested scroll area.
+- Added a Settings tab with Ocean, Violet, Emerald, Sunset, Slate, and custom-color themes that
+  apply across the complete extension and persist locally in the browser.
+- Added regression coverage for duplicate Salesforce labels and theme preference handling.
+
 ## 0.7.28 — Manual code search and dependency graph
 
 - Added a Code Inspector fallback that searches accessible Apex classes, triggers, LWC and Aura

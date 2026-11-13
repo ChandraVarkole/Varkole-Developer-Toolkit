@@ -22,6 +22,13 @@ import { RunApexPage } from './pages/RunApexPage';
 import { SoqlPage } from './pages/SoqlPage';
 import { orgName } from './org';
 import { openWorkspace } from './api';
+import {
+  applyThemePreference,
+  readThemePreference,
+  saveThemePreference,
+  THEME_OPTIONS,
+  type ThemePreference,
+} from './theme';
 import type {
   ComponentPickResult,
   ComponentPickResultMessage,
@@ -62,6 +69,7 @@ const MODULES: ModuleItem[] = [
     featured: true,
     group: 'Intelligence',
   },
+  { id: 'settings', label: 'Settings', icon: '⚙', available: true, group: 'Intelligence' },
 ];
 
 export function WorkspaceApp() {
@@ -74,6 +82,12 @@ export function WorkspaceApp() {
   const { state, setState, error, loading } = useExtensionState();
   const [module, setModule] = useState(readHash());
   const [showConnect, setShowConnect] = useState(false);
+  const [theme, setTheme] = useState<ThemePreference>(readThemePreference);
+
+  useEffect(() => {
+    applyThemePreference(theme);
+    saveThemePreference(theme);
+  }, [theme]);
 
   useEffect(() => {
     const update = () => setModule(readHash());
@@ -287,6 +301,8 @@ export function WorkspaceApp() {
               state={state}
               setState={setState}
               onConnect={() => setShowConnect(true)}
+              theme={theme}
+              onThemeChange={setTheme}
             />
           ) : READ_ONLY_MODULES[activeModule.id] ? (
             <ReadOnlyQueryPage
@@ -341,10 +357,14 @@ function SettingsPage({
   state,
   setState,
   onConnect,
+  theme,
+  onThemeChange,
 }: {
   state: ExtensionState;
   setState: (state: ExtensionState) => void;
   onConnect: () => void;
+  theme: ThemePreference;
+  onThemeChange: (theme: ThemePreference) => void;
 }) {
   const selectedOrg = state.orgs.find((org) => org.key === state.selectedOrgKey);
 
@@ -379,6 +399,43 @@ function SettingsPage({
           OAuth fallback
         </button>
       </header>
+      <section className="section-card theme-settings">
+        <div className="section-title">
+          <div>
+            <h2>Appearance</h2>
+            <p>Choose a toolkit color. Your preference stays in this browser.</p>
+          </div>
+        </div>
+        <div className="theme-options" role="radiogroup" aria-label="Toolkit theme">
+          {THEME_OPTIONS.map((option) => (
+            <button
+              className={`theme-option ${theme.id === option.id ? 'selected' : ''}`}
+              key={option.id}
+              type="button"
+              role="radio"
+              aria-checked={theme.id === option.id}
+              onClick={() => onThemeChange({ ...theme, id: option.id })}
+            >
+              <span
+                className="theme-swatch"
+                style={{
+                  background: `linear-gradient(135deg, ${option.color}, ${option.secondary})`,
+                }}
+              />
+              <span>{option.label}</span>
+            </button>
+          ))}
+          <label className={`theme-option custom ${theme.id === 'custom' ? 'selected' : ''}`}>
+            <input
+              type="color"
+              value={theme.customColor}
+              aria-label="Custom theme color"
+              onChange={(event) => onThemeChange({ id: 'custom', customColor: event.target.value })}
+            />
+            <span>Custom</span>
+          </label>
+        </div>
+      </section>
       <section className="section-card">
         <div className="section-title">
           <div>

@@ -203,6 +203,7 @@ export function SoqlPage({ org }: { org?: OrgIdentity | undefined }) {
           onObjectApiNameChange={changeBuilderObject}
           selectedFields={builderFields}
           onSelectedFieldsChange={setBuilderFields}
+          expandedFields
         />
         <div className="section-actions">
           <span />

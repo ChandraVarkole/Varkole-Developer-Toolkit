@@ -7,6 +7,19 @@ export function objectDisplayLabel(object: SalesforceObjectSummary): string {
   return !label || /^missing label$/i.test(label) ? object.name : label;
 }
 
+export function objectSelectionLabel(
+  object: SalesforceObjectSummary,
+  objects: SalesforceObjectSummary[],
+): string {
+  const label = objectDisplayLabel(object);
+  const duplicateLabel = objects.some(
+    (candidate) =>
+      candidate.name !== object.name &&
+      objectDisplayLabel(candidate).localeCompare(label, undefined, { sensitivity: 'base' }) === 0,
+  );
+  return duplicateLabel || label !== object.name ? `${label} (${object.name})` : object.name;
+}
+
 export function sortSalesforceObjects(
   objects: SalesforceObjectSummary[],
 ): SalesforceObjectSummary[] {
