@@ -11,7 +11,14 @@ export async function sendMessage<T>(request: UiRequest): Promise<T> {
   return response.data;
 }
 
-export function openWorkspace(module = ''): void {
+export function openWorkspace(
+  module = '',
+  context?: { recordId?: string | undefined; pageUrl?: string | undefined },
+): void {
+  const search = new URLSearchParams();
+  if (context?.recordId) search.set('recordId', context.recordId);
+  if (context?.pageUrl) search.set('pageUrl', context.pageUrl);
+  const query = search.size ? `?${search.toString()}` : '';
   const suffix = module ? `#${module}` : '';
-  void chrome.tabs.create({ url: chrome.runtime.getURL(`workspace.html${suffix}`) });
+  void chrome.tabs.create({ url: chrome.runtime.getURL(`workspace.html${query}${suffix}`) });
 }

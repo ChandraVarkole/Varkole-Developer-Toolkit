@@ -4,74 +4,131 @@ import { sendMessage } from '../api';
 import { CopyButton } from '../components/CopyButton';
 import { EmptyState, InlineError } from '../components/Status';
 import {
-  CODE_INVENTORY,
+  activeRecordPageOverride,
   codeFilesFromRecords,
   codeResourceFromRecord,
-  relatedCodeResources,
-  sortCodeResources,
+  codeResourcesFromDependencies,
+  dependencyQuery,
+  directContextQueries,
+  overrideResourceQuery,
+  pageContextFromSalesforceUrl,
+  recordTriggerQuery,
+  sortContextResources,
   sourceQuery,
   type CodeFile,
   type CodeResource,
+  type CodeResourceKind,
 } from './code-inspector';
 
-const ALL_TYPES = 'All types';
+interface CodeQueryDefinition {
+  kind: CodeResourceKind;
+  query: string;
+  relationship?: CodeResource['relationship'];
+}
 
 export function CodeInspectorPage({
   org,
   currentRecordId,
+  currentPageUrl,
 }: {
   org?: OrgIdentity | undefined;
   currentRecordId?: string | undefined;
+  currentPageUrl?: string | undefined;
 }) {
   const [resources, setResources] = useState<CodeResource[]>([]);
   const [selected, setSelected] = useState<CodeResource>();
   const [files, setFiles] = useState<CodeFile[]>([]);
   const [filter, setFilter] = useState('');
-  const [kind, setKind] = useState<string>(ALL_TYPES);
   const [currentObject, setCurrentObject] = useState<string>();
   const [loading, setLoading] = useState(false);
   const [loadingSource, setLoadingSource] = useState(false);
   const [error, setError] = useState<string>();
-  const [partialNote, setPartialNote] = useState<string>();
+  const [sourceError, setSourceError] = useState<string>();
+  const [contextNote, setContextNote] = useState<string>();
+  const pageContext = useMemo(() => pageContextFromSalesforceUrl(currentPageUrl), [currentPageUrl]);
 
-  async function loadInventory() {
+  async function loadCurrentContext() {
     if (!org) return;
     setLoading(true);
     setError(undefined);
-    setPartialNote(undefined);
+    setContextNote(undefined);
+    setCurrentObject(undefined);
     try {
-      const outcomes = await Promise.all(
-        CODE_INVENTORY.map(async (definition) => {
-          try {
-            const result = await runToolingQuery(org, definition.query);
-            return {
-              definition,
-              resources: result.records
-                .map((record) => codeResourceFromRecord(definition.kind, record))
-                .filter((resource): resource is CodeResource => Boolean(resource)),
-            };
-          } catch {
-            return { definition, resources: undefined };
-          }
-        }),
-      );
-      const next = sortCodeResources(
-        outcomes.flatMap((outcome) => outcome.resources ?? []),
-        currentObject,
-      );
-      const unavailable = outcomes
-        .filter((outcome) => !outcome.resources)
-        .map((outcome) => outcome.definition.kind);
+      const roots: CodeResource[] = [];
+      roots.push(...(await runDefinitions(org, directContextQueries(pageContext))));
+
+      if (currentRecordId) {
+        const inspection = await sendMessage<RecordInspection>({
+          type: 'INSPECT_RECORD',
+          payload: { key: org.key, recordId: currentRecordId },
+        });
+        setCurrentObject(inspection.objectApiName);
+
+        const triggers = await runToolingQuery(org, recordTriggerQuery(inspection.objectApiName));
+        roots.push(
+          ...triggers.records
+            .map((record) => codeResourceFromRecord('Apex trigger', record, 'Object automation'))
+            .filter((resource): resource is CodeResource => Boolean(resource)),
+        );
+
+        const override = activeRecordPageOverride(
+          inspection.describe,
+          pageContext?.experience ?? 'Classic',
+        );
+        if (override?.pageId) {
+          roots.push(...(await runDefinitions(org, overrideResourceQuery(override.pageId))));
+        } else if (override?.url) {
+          const overrideUrl = new URL(override.url, org.instanceUrl).href;
+          roots.push(
+            ...(await runDefinitions(
+              org,
+              directContextQueries(pageContextFromSalesforceUrl(overrideUrl)),
+            )),
+          );
+        } else if (!roots.some((resource) => resource.relationship === 'Current page')) {
+          setContextNote(
+            `This is the standard ${pageContext?.experience ?? 'Salesforce'} ${inspection.objectApiName} record page. No custom page source was exposed; object triggers are shown when available.`,
+          );
+        }
+      }
+
+      const rootResources = sortContextResources(roots);
+      const relatedQuery = dependencyQuery(rootResources.map((resource) => resource.id));
+      let related: CodeResource[] = [];
+      if (relatedQuery) {
+        try {
+          const dependencyResult = await runToolingQuery(org, relatedQuery);
+          related = codeResourcesFromDependencies(dependencyResult.records);
+        } catch {
+          setContextNote((note) =>
+            note
+              ? `${note} Salesforce did not expose dependency metadata for this context.`
+              : 'Salesforce did not expose dependency metadata for this context.',
+          );
+        }
+      }
+
+      const next = sortContextResources([...rootResources, ...related]);
       setResources(next);
       setSelected((current) =>
-        current ? next.find((resource) => resource.id === current.id) : next[0],
+        current ? (next.find((resource) => resource.id === current.id) ?? next[0]) : next[0],
       );
-      if (unavailable.length) {
-        setPartialNote(`Not available through this org session: ${unavailable.join(', ')}.`);
+      if (!next.length) {
+        setContextNote(
+          (note) =>
+            note ??
+            (currentPageUrl
+              ? 'No accessible unmanaged UI or Apex source is directly associated with this page.'
+              : 'Open Code Inspector from a Salesforce record, Visualforce page, component, or Apex setup page.'),
+        );
       }
     } catch (cause) {
+      setResources([]);
+      setSelected(undefined);
       setError(
-        cause instanceof Error ? cause.message : 'Salesforce code inventory could not load.',
+        cause instanceof Error
+          ? cause.message
+          : 'The code related to the current Salesforce page could not be inspected.',
       );
     } finally {
       setLoading(false);
@@ -79,20 +136,10 @@ export function CodeInspectorPage({
   }
 
   useEffect(() => {
-    if (!org || !currentRecordId) return;
-    void sendMessage<RecordInspection>({
-      type: 'INSPECT_RECORD',
-      payload: { key: org.key, recordId: currentRecordId },
-    })
-      .then((inspection) => setCurrentObject(inspection.objectApiName))
-      .catch(() => undefined);
-  }, [currentRecordId, org]);
-
-  useEffect(() => {
-    void loadInventory();
-    // Load again only when the selected Salesforce connection changes.
+    void loadCurrentContext();
+    // Refresh when the selected org or the Salesforce page changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [org?.key]);
+  }, [org?.key, currentRecordId, currentPageUrl]);
 
   useEffect(() => {
     if (!org || !selected) {
@@ -101,7 +148,7 @@ export function CodeInspectorPage({
     }
     let active = true;
     setLoadingSource(true);
-    setError(undefined);
+    setSourceError(undefined);
     void runToolingQuery(org, sourceQuery(selected))
       .then((result) => {
         if (active) setFiles(codeFilesFromRecords(selected, result.records));
@@ -109,7 +156,7 @@ export function CodeInspectorPage({
       .catch((cause: unknown) => {
         if (active) {
           setFiles([]);
-          setError(
+          setSourceError(
             cause instanceof Error
               ? cause.message
               : 'Salesforce did not make this source available.',
@@ -126,24 +173,20 @@ export function CodeInspectorPage({
 
   const visibleResources = useMemo(() => {
     const needle = filter.trim().toLowerCase();
-    return sortCodeResources(
-      resources.filter(
-        (resource) =>
-          (kind === ALL_TYPES || resource.kind === kind) &&
-          (!needle ||
-            resource.name.toLowerCase().includes(needle) ||
-            resource.objectApiName?.toLowerCase().includes(needle)),
-      ),
-      currentObject,
+    return resources.filter(
+      (resource) =>
+        !needle ||
+        resource.name.toLowerCase().includes(needle) ||
+        resource.kind.toLowerCase().includes(needle) ||
+        resource.relationship.toLowerCase().includes(needle),
     );
-  }, [currentObject, filter, kind, resources]);
-  const related = selected ? relatedCodeResources(selected, files, resources) : [];
+  }, [filter, resources]);
 
   if (!org) {
     return (
       <EmptyState
         title="Open a Salesforce org"
-        description="Code Inspector uses accessible Tooling API metadata from the selected org."
+        description="Code Inspector reads only code related to the current Salesforce page."
       />
     );
   }
@@ -152,29 +195,36 @@ export function CodeInspectorPage({
     <div className="page-stack code-inspector-page">
       <header className="page-header">
         <div>
-          <div className="eyebrow">Local source · read-only</div>
+          <div className="eyebrow">Current context · read-only</div>
           <h1>Code Inspector</h1>
-          <p>Find accessible unmanaged Apex, LWC, Aura, and Visualforce source.</p>
+          <p>See only the accessible UI and Apex components related to this Salesforce page.</p>
         </div>
         <button
           className="button button-secondary button-compact"
           type="button"
           disabled={loading}
-          onClick={() => void loadInventory()}
+          onClick={() => void loadCurrentContext()}
         >
-          {loading ? 'Loading…' : 'Refresh code'}
+          {loading ? 'Inspecting…' : 'Refresh inspection'}
         </button>
       </header>
 
-      {currentObject && (
-        <div className="code-context-note">
-          <span>Current record object</span>
-          <strong>{currentObject}</strong>
-          <small>Matching triggers appear first.</small>
-        </div>
-      )}
+      <div className="code-context-note">
+        <span>{pageContext?.experience ?? 'Salesforce'} context</span>
+        <strong>
+          {currentObject ??
+            pageContext?.visualforceName ??
+            pageContext?.componentName ??
+            'Current page'}
+        </strong>
+        <small>
+          {currentRecordId
+            ? `Record ${currentRecordId}`
+            : (pageContext?.pathname ?? 'Open the embedded extension from Salesforce')}
+        </small>
+      </div>
       <InlineError message={error} />
-      {partialNote && <p className="compact-note">{partialNote}</p>}
+      {contextNote && <p className="compact-note">{contextNote}</p>}
 
       <div className="code-inspector-layout">
         <aside className="code-resource-panel">
@@ -182,15 +232,9 @@ export function CodeInspectorPage({
             <input
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
-              placeholder="Search code or object…"
+              placeholder="Filter related components…"
               type="search"
             />
-            <select value={kind} onChange={(event) => setKind(event.target.value)}>
-              <option>{ALL_TYPES}</option>
-              {CODE_INVENTORY.map((definition) => (
-                <option key={definition.kind}>{definition.kind}</option>
-              ))}
-            </select>
           </div>
           <div className="code-resource-list">
             {visibleResources.map((resource) => (
@@ -202,13 +246,12 @@ export function CodeInspectorPage({
               >
                 <strong>{resource.name}</strong>
                 <span>
-                  {resource.kind}
-                  {resource.objectApiName ? ` · ${resource.objectApiName}` : ''}
+                  {resource.kind} · {resource.relationship}
                 </span>
               </button>
             ))}
             {!loading && visibleResources.length === 0 && (
-              <p className="muted">No accessible unmanaged code matches this search.</p>
+              <p className="muted">No related accessible components to show.</p>
             )}
           </div>
         </aside>
@@ -216,23 +259,25 @@ export function CodeInspectorPage({
         <section className="code-source-panel">
           {!selected ? (
             <EmptyState
-              title={loading ? 'Loading accessible source…' : 'Select a component'}
-              description="Choose a code resource to inspect its source and references."
+              title={loading ? 'Inspecting the current page…' : 'No local source detected'}
+              description="Navigate to a Salesforce record, Visualforce page, component, or Apex setup page, then refresh."
             />
           ) : (
             <>
               <div className="code-source-heading">
                 <div>
-                  <span>{selected.kind}</span>
+                  <span>{selected.relationship}</span>
                   <h2>{selected.name}</h2>
                   <small>
-                    {selected.status ?? 'Local source'}
+                    {selected.kind}
+                    {selected.status ? ` · ${selected.status}` : ''}
                     {selected.apiVersion ? ` · API v${selected.apiVersion}` : ''}
                   </small>
                 </div>
                 <CopyButton value={selected.name} label="Copy component name" />
               </div>
 
+              <InlineError message={sourceError} />
               {loadingSource ? (
                 <p className="muted">Loading source from Salesforce…</p>
               ) : files.length ? (
@@ -254,20 +299,10 @@ export function CodeInspectorPage({
                   ))}
                 </div>
               ) : (
-                <p className="muted">Salesforce returned no readable source for this component.</p>
-              )}
-
-              {related.length > 0 && (
-                <div className="related-code">
-                  <strong>Referenced accessible code</strong>
-                  <div>
-                    {related.map((resource) => (
-                      <button type="button" key={resource.id} onClick={() => setSelected(resource)}>
-                        {resource.name} <span>{resource.kind}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <p className="muted">
+                  This component is related to the current page, but its source is not readable in
+                  this Salesforce session.
+                </p>
               )}
             </>
           )}
@@ -275,12 +310,37 @@ export function CodeInspectorPage({
       </div>
 
       <p className="code-inspector-limit">
-        Managed-package source and the exact runtime Lightning component tree are not exposed by
-        Salesforce. Code Inspector shows only source available to the current user through supported
-        APIs.
+        Varkole does not scan the entire org or scrape the rendered page. It follows the current
+        record/page metadata and Salesforce dependency metadata, then shows only source available to
+        this user. Managed-package internals remain hidden.
       </p>
     </div>
   );
+}
+
+async function runDefinitions(
+  org: OrgIdentity,
+  definitions: CodeQueryDefinition[],
+): Promise<CodeResource[]> {
+  const outcomes = await Promise.all(
+    definitions.map(async (definition) => {
+      try {
+        const result = await runToolingQuery(org, definition.query);
+        return result.records
+          .map((record) =>
+            codeResourceFromRecord(
+              definition.kind,
+              record,
+              definition.relationship ?? 'Current page',
+            ),
+          )
+          .filter((resource): resource is CodeResource => Boolean(resource));
+      } catch {
+        return [];
+      }
+    }),
+  );
+  return outcomes.flat();
 }
 
 async function runToolingQuery(org: OrgIdentity, soql: string): Promise<QueryPage> {

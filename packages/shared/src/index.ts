@@ -101,6 +101,14 @@ export interface SalesforceObjectDescribe {
   label: string;
   fields: SalesforceFieldSummary[];
   childRelationships: SalesforceChildRelationship[];
+  actionOverrides?: SalesforceActionOverride[];
+}
+
+export interface SalesforceActionOverride {
+  name: string;
+  formFactor?: string;
+  pageId?: string;
+  url?: string;
 }
 
 export interface SalesforceTabInfo {

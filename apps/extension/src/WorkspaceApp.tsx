@@ -63,6 +63,7 @@ export function WorkspaceApp() {
   const searchParams = new URLSearchParams(window.location.search);
   const embedded = searchParams.get('embedded') === '1';
   const [currentRecordId, setCurrentRecordId] = useState(searchParams.get('recordId') ?? undefined);
+  const [currentPageUrl, setCurrentPageUrl] = useState(searchParams.get('pageUrl') ?? undefined);
   const { state, setState, error, loading } = useExtensionState();
   const [module, setModule] = useState(readHash());
   const [showConnect, setShowConnect] = useState(false);
@@ -75,8 +76,9 @@ export function WorkspaceApp() {
 
   useEffect(() => {
     const receiveContext = (event: MessageEvent<unknown>) => {
-      if (event.source !== window.parent || !isRecordContextMessage(event.data)) return;
+      if (event.source !== window.parent || !isPageContextMessage(event.data)) return;
       setCurrentRecordId(event.data.recordId);
+      setCurrentPageUrl(event.data.pageUrl);
       if (event.data.recordId) {
         setModule('records');
         window.history.replaceState(null, '', '#records');
@@ -165,7 +167,12 @@ export function WorkspaceApp() {
               <button
                 className="icon-button embedded-expand"
                 type="button"
-                onClick={() => openWorkspace(activeModule.id)}
+                onClick={() =>
+                  openWorkspace(activeModule.id, {
+                    recordId: currentRecordId,
+                    pageUrl: currentPageUrl,
+                  })
+                }
                 aria-label="Open full-page workspace"
                 title="Open full-page workspace"
               >
@@ -207,9 +214,10 @@ export function WorkspaceApp() {
             />
           ) : activeModule.id === 'code' ? (
             <CodeInspectorPage
-              key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}:${currentRecordId ?? 'browse'}`}
+              key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}:${currentRecordId ?? 'browse'}:${currentPageUrl ?? 'direct'}`}
               org={selectedOrg}
               currentRecordId={currentRecordId}
+              currentPageUrl={currentPageUrl}
             />
           ) : activeModule.id === 'import' ? (
             <ImportPage
@@ -445,15 +453,21 @@ function readHash() {
   return location.hash.replace(/^#/, '') || 'records';
 }
 
-function isRecordContextMessage(
-  value: unknown,
-): value is { type: 'VARKOLE_RECORD_CONTEXT'; recordId?: string | undefined } {
+function isPageContextMessage(value: unknown): value is {
+  type: 'VARKOLE_PAGE_CONTEXT';
+  recordId?: string | undefined;
+  pageUrl?: string | undefined;
+} {
   if (!value || typeof value !== 'object') return false;
-  const message = value as { type?: unknown; recordId?: unknown };
+  const message = value as { type?: unknown; recordId?: unknown; pageUrl?: unknown };
   return (
-    message.type === 'VARKOLE_RECORD_CONTEXT' &&
+    message.type === 'VARKOLE_PAGE_CONTEXT' &&
     (message.recordId === undefined ||
       (typeof message.recordId === 'string' &&
-        /^[A-Za-z0-9]{15}(?:[A-Za-z0-9]{3})?$/.test(message.recordId)))
+        /^[A-Za-z0-9]{15}(?:[A-Za-z0-9]{3})?$/.test(message.recordId))) &&
+    (message.pageUrl === undefined ||
+      (typeof message.pageUrl === 'string' &&
+        message.pageUrl.length <= 8_192 &&
+        /^https?:\/\//.test(message.pageUrl)))
   );
 }

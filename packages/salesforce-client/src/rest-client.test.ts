@@ -25,6 +25,7 @@ describe('SalesforceRestClient describe', () => {
               cascadeDelete: false,
             },
           ],
+          actionOverrides: [{ name: 'View', formFactor: 'Large', pageId: '0M0000000000002AAA' }],
         }),
         { headers: { 'Content-Type': 'application/json' } },
       ),
@@ -48,6 +49,7 @@ describe('SalesforceRestClient describe', () => {
           restrictedDelete: false,
         },
       ],
+      actionOverrides: [{ name: 'View', formFactor: 'Large', pageId: '0M0000000000002AAA' }],
     });
   });
 

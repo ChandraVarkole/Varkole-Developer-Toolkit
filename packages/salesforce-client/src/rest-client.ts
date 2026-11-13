@@ -7,6 +7,7 @@ import type {
   QueryPage,
   QueryRecord,
   RecordInspection,
+  SalesforceActionOverride,
   SalesforceChildRelationship,
   SalesforceFieldSummary,
   SalesforceObjectDescribe,
@@ -45,6 +46,7 @@ interface RawDescribeResponse {
   label: string;
   fields: SalesforceFieldSummary[];
   childRelationships?: SalesforceChildRelationship[];
+  actionOverrides?: SalesforceActionOverride[];
 }
 
 interface RawObjectSummary extends SalesforceObjectSummary {
@@ -252,6 +254,13 @@ export class SalesforceRestClient {
             ? { restrictedDelete: relationship.restrictedDelete }
             : {}),
         })),
+      ...(result.data.actionOverrides?.length
+        ? {
+            actionOverrides: result.data.actionOverrides.filter(
+              (override) => typeof override.name === 'string',
+            ),
+          }
+        : {}),
     };
   }
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.22 — Current-page code inspection
+
+- Replaced the org-wide Code Inspector inventory with a current-context view that starts from the
+  Salesforce page or record the user is viewing.
+- Added exact Visualforce, Lightning component, Apex setup-resource, and exposed record-page
+  override detection using the Salesforce page URL and supported APIs.
+- Added relationship-aware source discovery through Salesforce metadata dependencies, plus local
+  Apex triggers for the current record object, without claiming unrelated or unverified pages.
+- Added clear standard-page and unavailable-source states while continuing to respect the current
+  user's access and keeping managed-package internals hidden.
+
 ## 0.7.21 — Code inspection and adaptable workspace
 
 - Added a read-only Code Inspector for accessible unmanaged Apex classes and triggers, Lightning

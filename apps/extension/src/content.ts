@@ -96,15 +96,19 @@ function initialize() {
     applyPanelWidth(current + (event.key === 'ArrowLeft' ? 40 : -40));
   });
 
-  const sendRecordContext = () => {
+  const sendPageContext = () => {
     frame.contentWindow?.postMessage(
-      { type: 'VARKOLE_RECORD_CONTEXT', recordId: recordIdFromSalesforceUrl(location.href) },
+      {
+        type: 'VARKOLE_PAGE_CONTEXT',
+        recordId: recordIdFromSalesforceUrl(location.href),
+        pageUrl: location.href,
+      },
       new URL(chrome.runtime.getURL('/')).origin,
     );
   };
-  frame.addEventListener('load', sendRecordContext);
+  frame.addEventListener('load', sendPageContext);
   launcher.addEventListener('click', () => {
-    sendRecordContext();
+    sendPageContext();
     setOpen(true);
   });
   collapse.addEventListener('click', () => setOpen(false));
@@ -149,7 +153,11 @@ function setOpen(open: boolean) {
 
 function sendCurrentRecordContext() {
   panelFrame?.contentWindow?.postMessage(
-    { type: 'VARKOLE_RECORD_CONTEXT', recordId: recordIdFromSalesforceUrl(location.href) },
+    {
+      type: 'VARKOLE_PAGE_CONTEXT',
+      recordId: recordIdFromSalesforceUrl(location.href),
+      pageUrl: location.href,
+    },
     new URL(chrome.runtime.getURL('/')).origin,
   );
 }
