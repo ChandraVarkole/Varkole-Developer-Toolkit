@@ -7,6 +7,12 @@ describe('copyable technical table values', () => {
     expect(isCopyableTechnicalValue('RecordId', '001000000000001AAA')).toBe(true);
     expect(isCopyableTechnicalValue('ApiName', 'Account_Status__c')).toBe(true);
     expect(isCopyableTechnicalValue('Config', '{"enabled":true}')).toBe(true);
+    expect(
+      isCopyableTechnicalValue(
+        'Assignee.Name',
+        '{"attributes":{"type":"User"},"Name":"Sample User"}',
+      ),
+    ).toBe(true);
   });
 
   it('does not add copy controls to ordinary names or emails', () => {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { QueryPage, QueryRecord } from '@varkole/shared';
 import { CopyButton } from './CopyButton';
 import { isCopyableTechnicalValue } from './copyable-values';
@@ -28,6 +28,7 @@ export function QueryResults({
 }) {
   const [filter, setFilter] = useState('');
   const [sort, setSort] = useState<TableSort>();
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const columns = useMemo(
     () => resultColumns(result.records).filter((column) => !hiddenColumns?.includes(column)),
     [hiddenColumns, result.records],
@@ -46,6 +47,43 @@ export function QueryResults({
   const hasRecordLinks = Boolean(
     recordBaseUrl && visibleRows.some((record) => recordIdFromQueryRecord(record)),
   );
+  const defaultWidths = useMemo(
+    () =>
+      Object.fromEntries(
+        columns.map((column) => [
+          column,
+          initialColumnWidth(
+            columnLabels?.[column] ?? humanizeColumn(column),
+            result.records.slice(0, 50).map((record) => formatCell(getPath(record, column))),
+          ),
+        ]),
+      ),
+    [columnLabels, columns, result.records],
+  );
+  const widthFor = (column: string) => columnWidths[column] ?? defaultWidths[column] ?? 160;
+  const tableMinWidth =
+    52 + (hasRecordLinks ? 62 : 0) + columns.reduce((sum, column) => sum + widthFor(column), 0);
+
+  function resizeColumn(column: string, width: number) {
+    setColumnWidths((current) => ({ ...current, [column]: Math.round(clamp(width, 88, 720)) }));
+  }
+
+  function startColumnResize(event: ReactPointerEvent<HTMLSpanElement>, column: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    const startingX = event.clientX;
+    const startingWidth = widthFor(column);
+    const move = (pointerEvent: PointerEvent) =>
+      resizeColumn(column, startingWidth + pointerEvent.clientX - startingX);
+    const finish = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', finish, { once: true });
+    window.addEventListener('pointercancel', finish, { once: true });
+  }
 
   return (
     <section
@@ -73,13 +111,24 @@ export function QueryResults({
         </div>
       ) : (
         <div className="table-scroll">
-          <table>
+          <table className="results-data-table" style={{ minWidth: `${tableMinWidth}px` }}>
+            <colgroup>
+              <col style={{ width: '52px' }} />
+              {hasRecordLinks && <col style={{ width: '62px' }} />}
+              {columns.map((column) => (
+                <col key={column} style={{ width: `${widthFor(column)}px` }} />
+              ))}
+            </colgroup>
             <thead>
               <tr>
                 <th>#</th>
                 {hasRecordLinks && <th className="record-open-heading">Open</th>}
                 {columns.map((column) => (
-                  <th key={column} aria-sort={sort?.column === column ? sort.direction : 'none'}>
+                  <th
+                    className="resizable-heading"
+                    key={column}
+                    aria-sort={sort?.column === column ? sort.direction : 'none'}
+                  >
                     <button
                       className="sort-button"
                       type="button"
@@ -95,6 +144,29 @@ export function QueryResults({
                           : '↕'}
                       </span>
                     </button>
+                    <span
+                      className="column-resize-handle"
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label={`Resize ${columnLabels?.[column] ?? humanizeColumn(column)} column`}
+                      tabIndex={0}
+                      onPointerDown={(event) => startColumnResize(event, column)}
+                      onDoubleClick={() =>
+                        setColumnWidths((current) => {
+                          const next = { ...current };
+                          delete next[column];
+                          return next;
+                        })
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+                        event.preventDefault();
+                        resizeColumn(
+                          column,
+                          widthFor(column) + (event.key === 'ArrowRight' ? 24 : -24),
+                        );
+                      }}
+                    />
                   </th>
                 ))}
               </tr>
@@ -226,4 +298,15 @@ function formatCell(value: unknown): string {
     return String(value);
   }
   return '';
+}
+
+function initialColumnWidth(label: string, values: string[]): number {
+  const longestValue = values
+    .slice(0, 50)
+    .reduce((length, value) => Math.max(length, Math.min(value.length, 42)), 0);
+  return Math.round(clamp(48 + Math.max(label.length, longestValue) * 7.2, 128, 360));
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
 }

@@ -9,6 +9,7 @@ import {
   codeResourceFromRecord,
   codeResourcesFromDependencies,
   customTabTargetQueries,
+  customTabDependencyQuery,
   dependencyQuery,
   directContextQueries,
   overrideResourceQuery,
@@ -61,6 +62,20 @@ export function CodeInspectorPage({
       roots.push(...(await runDefinitions(org, directContextQueries(pageContext))));
 
       if (pageContext?.navigationTabName) {
+        let tabDependencyResources: CodeResource[] = [];
+        try {
+          const dependencyResult = await runToolingQuery(
+            org,
+            customTabDependencyQuery(pageContext.navigationTabName),
+          );
+          tabDependencyResources = codeResourcesFromDependencies(
+            dependencyResult.records,
+            'Current page',
+          );
+          roots.push(...tabDependencyResources);
+        } catch {
+          // Custom Tab dependencies aren't exposed in every org/API version. Metadata API is next.
+        }
         try {
           const tab = await sendMessage<CustomTabMetadata>({
             type: 'GET_CUSTOM_TAB',
@@ -83,17 +98,19 @@ export function CodeInspectorPage({
           }
         } catch {
           setCurrentTabLabel(pageContext.navigationTabName);
-          roots.push(
-            ...(await runDefinitions(org, [
-              ...directContextQueries({
-                ...pageContext,
-                componentName: pageContext.navigationTabName,
-              }),
-            ])),
-          );
-          setContextNote(
-            'The Custom Tab metadata was not readable, so Varkole tried an exact same-name component lookup.',
-          );
+          if (!tabDependencyResources.length) {
+            roots.push(
+              ...(await runDefinitions(org, [
+                ...directContextQueries({
+                  ...pageContext,
+                  componentName: pageContext.navigationTabName,
+                }),
+              ])),
+            );
+            setContextNote(
+              'The Custom Tab metadata was not readable, so Varkole tried an exact same-name component lookup.',
+            );
+          }
         }
       }
 
@@ -158,7 +175,7 @@ export function CodeInspectorPage({
           (note) =>
             note ??
             (currentPageUrl
-              ? 'No accessible unmanaged UI or Apex source is directly associated with this page.'
+              ? 'No accessible UI or Apex component is directly associated with this page.'
               : 'Open Code Inspector from a Salesforce record, Visualforce page, component, or Apex setup page.'),
         );
       }

@@ -1985,6 +1985,39 @@ table {
   border-spacing: 0;
   font-size: 11px;
 }
+.results-data-table {
+  table-layout: fixed;
+}
+.results-data-table td {
+  overflow: hidden;
+}
+.resizable-heading {
+  padding-right: 15px;
+}
+.column-resize-handle {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  right: -4px;
+  width: 9px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+}
+.column-resize-handle::after {
+  position: absolute;
+  top: 22%;
+  bottom: 22%;
+  left: 4px;
+  width: 1px;
+  background: #a8b8cc;
+  content: '';
+  opacity: 0;
+}
+.resizable-heading:hover .column-resize-handle::after,
+.column-resize-handle:focus::after {
+  opacity: 1;
+}
 th {
   position: sticky;
   z-index: 2;

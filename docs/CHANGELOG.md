@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.24 — Resizable results and cross-org code context
+
+- Added drag-to-resize result-table columns, keyboard resizing with the arrow keys, and
+  double-click reset so long values can be revealed without changing the query.
+- Added copy actions for JSON-shaped table values, including nested Access Assignment assignee
+  payloads that Salesforce occasionally returns with relationship attributes.
+- Removed unmanaged-only filters from exact Code Inspector targets and object triggers so
+  accessible namespaced and packaged components remain visible as page-related components.
+- Added Custom Tab dependency lookup as another cross-org resolution path; protected source stays
+  hidden when Salesforce exposes the component relationship but not its implementation.
+
 ## 0.7.23 — Custom navigation tab inspection
 
 - Added Custom Tab metadata resolution for Lightning navigation routes such as

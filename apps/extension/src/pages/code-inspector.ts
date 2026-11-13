@@ -104,7 +104,7 @@ export function customTabTargetQueries(tab: CustomTabMetadata): Array<{
     return [
       {
         kind: 'LWC',
-        query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM LightningComponentBundle WHERE DeveloperName = '${safeName(name)}' AND ManageableState = 'unmanaged' LIMIT 1`,
+        query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM LightningComponentBundle WHERE DeveloperName = '${safeName(name)}' LIMIT 25`,
       },
     ];
   }
@@ -113,7 +113,7 @@ export function customTabTargetQueries(tab: CustomTabMetadata): Array<{
     return [
       {
         kind: 'Aura',
-        query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM AuraDefinitionBundle WHERE DeveloperName = '${safeName(name)}' AND ManageableState = 'unmanaged' LIMIT 1`,
+        query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM AuraDefinitionBundle WHERE DeveloperName = '${safeName(name)}' LIMIT 25`,
       },
     ];
   }
@@ -129,7 +129,7 @@ export function customTabTargetQueries(tab: CustomTabMetadata): Array<{
     return [
       {
         kind: 'Visualforce page',
-        query: `SELECT Id, Name, NamespacePrefix, ApiVersion FROM ApexPage WHERE Name = '${safeName(componentDeveloperName(tab.page))}' AND ManageableState = 'unmanaged' LIMIT 1`,
+        query: `SELECT Id, Name, NamespacePrefix, ApiVersion FROM ApexPage WHERE Name = '${safeName(componentDeveloperName(tab.page))}' LIMIT 25`,
       },
     ];
   }
@@ -162,7 +162,7 @@ export function directContextQueries(context?: SalesforcePageContext): Array<{
     return [
       {
         kind: 'Visualforce page',
-        query: `SELECT Id, Name, NamespacePrefix, ApiVersion FROM ApexPage WHERE Name = '${safeName(context.visualforceName)}' AND ManageableState = 'unmanaged' LIMIT 1`,
+        query: `SELECT Id, Name, NamespacePrefix, ApiVersion FROM ApexPage WHERE Name = '${safeName(context.visualforceName)}' LIMIT 25`,
       },
     ];
   }
@@ -171,15 +171,15 @@ export function directContextQueries(context?: SalesforcePageContext): Array<{
     return kind ? [{ kind, query: resourceLookupQuery(kind, context.sourceId) }] : [];
   }
   if (context.componentName) {
-    const name = safeName(context.componentName);
+    const name = safeName(componentDeveloperName(context.componentName));
     return [
       {
         kind: 'LWC',
-        query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM LightningComponentBundle WHERE DeveloperName = '${name}' AND ManageableState = 'unmanaged' LIMIT 1`,
+        query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM LightningComponentBundle WHERE DeveloperName = '${name}' LIMIT 25`,
       },
       {
         kind: 'Aura',
-        query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM AuraDefinitionBundle WHERE DeveloperName = '${name}' AND ManageableState = 'unmanaged' LIMIT 1`,
+        query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM AuraDefinitionBundle WHERE DeveloperName = '${name}' LIMIT 25`,
       },
     ];
   }
@@ -187,7 +187,11 @@ export function directContextQueries(context?: SalesforcePageContext): Array<{
 }
 
 export function recordTriggerQuery(objectApiName: string): string {
-  return `SELECT Id, Name, NamespacePrefix, ApiVersion, Status, TableEnumOrId FROM ApexTrigger WHERE TableEnumOrId = '${safeName(objectApiName)}' AND ManageableState = 'unmanaged' ORDER BY Name LIMIT 100`;
+  return `SELECT Id, Name, NamespacePrefix, ApiVersion, Status, TableEnumOrId FROM ApexTrigger WHERE TableEnumOrId = '${safeName(objectApiName)}' ORDER BY Name LIMIT 100`;
+}
+
+export function customTabDependencyQuery(tabName: string): string {
+  return `SELECT MetadataComponentId, MetadataComponentName, MetadataComponentType, RefMetadataComponentId, RefMetadataComponentName, RefMetadataComponentType FROM MetadataComponentDependency WHERE MetadataComponentType = 'CustomTab' AND MetadataComponentName = '${safeName(tabName)}' LIMIT 100`;
 }
 
 export function overrideResourceQuery(pageId: string): Array<{
@@ -235,7 +239,10 @@ export function dependencyQuery(resourceIds: string[]): string | undefined {
   return `SELECT MetadataComponentId, MetadataComponentName, MetadataComponentType, RefMetadataComponentId, RefMetadataComponentName, RefMetadataComponentType FROM MetadataComponentDependency WHERE MetadataComponentId IN (${ids.map((id) => `'${id}'`).join(', ')}) LIMIT 500`;
 }
 
-export function codeResourcesFromDependencies(records: QueryRecord[]): CodeResource[] {
+export function codeResourcesFromDependencies(
+  records: QueryRecord[],
+  relationship: CodeRelationship = 'Related component',
+): CodeResource[] {
   const resources = records
     .map((record): CodeResource | undefined => {
       const id = text(record.RefMetadataComponentId);
@@ -246,7 +253,7 @@ export function codeResourcesFromDependencies(records: QueryRecord[]): CodeResou
         id,
         name,
         kind,
-        relationship: 'Related component' as const,
+        relationship,
         ...(text(record.MetadataComponentId) ? { parentId: text(record.MetadataComponentId) } : {}),
       };
     })
@@ -313,17 +320,17 @@ function resourceLookupQuery(kind: CodeResourceKind, id: string): string {
     case 'Lightning page':
       return `SELECT Id, DeveloperName, MasterLabel, NamespacePrefix, Type, SobjectType FROM FlexiPage WHERE Id = '${safe}' LIMIT 1`;
     case 'Apex class':
-      return `SELECT Id, Name, NamespacePrefix, ApiVersion, Status FROM ApexClass WHERE Id = '${safe}' AND ManageableState = 'unmanaged' LIMIT 1`;
+      return `SELECT Id, Name, NamespacePrefix, ApiVersion, Status FROM ApexClass WHERE Id = '${safe}' LIMIT 1`;
     case 'Apex trigger':
-      return `SELECT Id, Name, NamespacePrefix, ApiVersion, Status, TableEnumOrId FROM ApexTrigger WHERE Id = '${safe}' AND ManageableState = 'unmanaged' LIMIT 1`;
+      return `SELECT Id, Name, NamespacePrefix, ApiVersion, Status, TableEnumOrId FROM ApexTrigger WHERE Id = '${safe}' LIMIT 1`;
     case 'LWC':
-      return `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM LightningComponentBundle WHERE Id = '${safe}' AND ManageableState = 'unmanaged' LIMIT 1`;
+      return `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM LightningComponentBundle WHERE Id = '${safe}' LIMIT 1`;
     case 'Aura':
-      return `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM AuraDefinitionBundle WHERE Id = '${safe}' AND ManageableState = 'unmanaged' LIMIT 1`;
+      return `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM AuraDefinitionBundle WHERE Id = '${safe}' LIMIT 1`;
     case 'Visualforce page':
-      return `SELECT Id, Name, NamespacePrefix, ApiVersion FROM ApexPage WHERE Id = '${safe}' AND ManageableState = 'unmanaged' LIMIT 1`;
+      return `SELECT Id, Name, NamespacePrefix, ApiVersion FROM ApexPage WHERE Id = '${safe}' LIMIT 1`;
     case 'Visualforce component':
-      return `SELECT Id, Name, NamespacePrefix, ApiVersion FROM ApexComponent WHERE Id = '${safe}' AND ManageableState = 'unmanaged' LIMIT 1`;
+      return `SELECT Id, Name, NamespacePrefix, ApiVersion FROM ApexComponent WHERE Id = '${safe}' LIMIT 1`;
   }
 }
 

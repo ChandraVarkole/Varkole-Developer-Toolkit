@@ -4,6 +4,7 @@ import {
   codeFilesFromRecords,
   codeResourcesFromDependencies,
   customTabTargetQueries,
+  customTabDependencyQuery,
   directContextQueries,
   pageContextFromSalesforceUrl,
   recordTriggerQuery,
@@ -37,6 +38,10 @@ describe('Code Inspector context helpers', () => {
     });
     expect(query?.kind).toBe('Aura');
     expect(query?.query).toContain("DeveloperName = 'socioWatchSettings'");
+    expect(query?.query).not.toContain('ManageableState');
+    expect(customTabDependencyQuery('SocioWatch_Settings')).toContain(
+      "MetadataComponentType = 'CustomTab'",
+    );
   });
 
   it('uses the current-user record page override and the current object triggers', () => {

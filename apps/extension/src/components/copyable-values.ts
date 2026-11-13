@@ -1,5 +1,7 @@
 export function isCopyableTechnicalValue(column: string, value: string): boolean {
   if (!value) return false;
+  const trimmed = value.trimStart();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) return true;
   const leaf = column.split('.').at(-1) ?? column;
   if (/email|(^|\s)name$/i.test(leaf) && !/username/i.test(leaf)) return false;
   if (
@@ -9,6 +11,5 @@ export function isCopyableTechnicalValue(column: string, value: string): boolean
   ) {
     return true;
   }
-  const trimmed = value.trimStart();
-  return trimmed.startsWith('{') || trimmed.startsWith('[');
+  return false;
 }
