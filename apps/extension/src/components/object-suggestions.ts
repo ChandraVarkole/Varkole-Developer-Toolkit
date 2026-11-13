@@ -44,3 +44,16 @@ export function matchingObjectSuggestions(
     )
     .slice(0, limit);
 }
+
+export function objectSearchInputState(value: string): {
+  draft: string;
+  showSuggestions: boolean;
+  clearSelection: boolean;
+} {
+  const trimmed = value.trim();
+  return {
+    draft: value,
+    showSuggestions: trimmed.length >= 2,
+    clearSelection: trimmed.length === 0,
+  };
+}

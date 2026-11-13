@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.31 — Simple SOQL object entry
+
+- Fixed the SOQL object input interrupting text entry when a partial value matched a standard
+  object while the user was still typing a custom or namespaced object API name.
+- Kept typed text stable until the user explicitly chooses a matching object with the mouse or
+  keyboard.
+- Selected the existing object text on focus for quick replacement and hid stale field choices
+  while a different object name is being entered.
+- Added regression coverage for standard and namespaced object entry remaining editable.
+
 ## 0.7.30 — Embedded workspace stability
 
 - Fixed the Salesforce drawer opening blank and preventing input after theme support was added.

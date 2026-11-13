@@ -8,6 +8,7 @@ import { sendMessage } from '../api';
 import {
   matchingObjectSuggestions,
   objectDisplayLabel,
+  objectSearchInputState,
   objectSelectionLabel,
   sortSalesforceObjects,
 } from './object-suggestions';
@@ -98,7 +99,9 @@ export function ObjectFieldPicker({
   }, [objectApiName, objects, onDescribeLoaded, org.key]);
 
   const activeDescribe =
-    describe?.name.toLowerCase() === objectApiName.trim().toLowerCase() ? describe : undefined;
+    objectDraft === undefined && describe?.name.toLowerCase() === objectApiName.trim().toLowerCase()
+      ? describe
+      : undefined;
   const selectedObject = objects.find(
     (object) => object.name.toLowerCase() === objectApiName.trim().toLowerCase(),
   );
@@ -156,31 +159,17 @@ export function ObjectFieldPicker({
           <div className="object-combobox">
             <input
               value={objectInput}
-              onFocus={() => setShowObjectSuggestions((objectDraft?.trim().length ?? 0) >= 2)}
+              onFocus={(event) => {
+                setShowObjectSuggestions((objectDraft?.trim().length ?? 0) >= 2);
+                if (objectDraft === undefined && selectedObject) event.currentTarget.select();
+              }}
               onBlur={() => window.setTimeout(() => setShowObjectSuggestions(false), 100)}
               onChange={(event) => {
-                const value = event.target.value;
-                const exactIdentity = objects.find(
-                  (object) =>
-                    objectSelectionLabel(object, objects).toLowerCase() ===
-                      value.trim().toLowerCase() ||
-                    object.name.toLowerCase() === value.trim().toLowerCase(),
-                );
-                const exactLabelMatches = objects.filter(
-                  (object) =>
-                    objectDisplayLabel(object).toLowerCase() === value.trim().toLowerCase(),
-                );
-                const exact =
-                  exactIdentity ??
-                  (exactLabelMatches.length === 1 ? exactLabelMatches[0] : undefined);
-                if (exact) {
-                  chooseObject(exact);
-                } else {
-                  setObjectDraft(value);
-                  setActiveSuggestion(0);
-                  setShowObjectSuggestions(value.trim().length >= 2);
-                  if (!value.trim()) onObjectApiNameChange('');
-                }
+                const next = objectSearchInputState(event.target.value);
+                setObjectDraft(next.draft);
+                setActiveSuggestion(0);
+                setShowObjectSuggestions(next.showSuggestions);
+                if (next.clearSelection) onObjectApiNameChange('');
               }}
               onKeyDown={(event) => {
                 if (!showObjectSuggestions || objectSuggestions.length === 0) return;

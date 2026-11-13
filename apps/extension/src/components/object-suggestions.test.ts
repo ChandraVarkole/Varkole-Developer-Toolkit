@@ -3,6 +3,7 @@ import type { SalesforceObjectSummary } from '@varkole/shared';
 import {
   matchingObjectSuggestions,
   objectDisplayLabel,
+  objectSearchInputState,
   objectSelectionLabel,
   sortSalesforceObjects,
 } from './object-suggestions';
@@ -50,5 +51,23 @@ describe('Salesforce object suggestions', () => {
       'Address (Address)',
       'Address (acme__Address__c)',
     ]);
+  });
+
+  it('keeps exact object text editable until the user selects a suggestion', () => {
+    expect(objectSearchInputState('Address')).toEqual({
+      draft: 'Address',
+      showSuggestions: true,
+      clearSelection: false,
+    });
+    expect(objectSearchInputState('acme__Address__c')).toEqual({
+      draft: 'acme__Address__c',
+      showSuggestions: true,
+      clearSelection: false,
+    });
+    expect(objectSearchInputState('')).toEqual({
+      draft: '',
+      showSuggestions: false,
+      clearSelection: true,
+    });
   });
 });
