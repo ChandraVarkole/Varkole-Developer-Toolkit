@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.21 — Code inspection and adaptable workspace
+
+- Added a read-only Code Inspector for accessible unmanaged Apex classes and triggers, Lightning
+  Web Components, Aura bundles, and Visualforce pages/components, with source viewing, search,
+  copy actions, current-record object context, and references to other accessible code.
+- Made the embedded Salesforce drawer resizable from its left edge, keyboard adjustable, and
+  double-click resettable while retaining the existing hide and full-page controls.
+- Added App Navigation search and selective copy actions for usernames, Salesforce IDs, API names,
+  URLs, JSON values, source, and the Org Info instance URL without adding copy clutter to names or
+  email addresses.
+- Simplified result-table headers to the row count and pagination state; timing, API usage, mode,
+  and host diagnostics no longer occupy the visible table toolbar.
+
 ## 0.7.20 — In-extension AI Agent guide
 
 - Added a dedicated How AI Agent works page inside the AI Agent tab with capabilities, retrieval

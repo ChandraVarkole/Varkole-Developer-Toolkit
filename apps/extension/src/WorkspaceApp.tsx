@@ -9,6 +9,7 @@ import { AppTabsPage } from './pages/AppTabsPage';
 import { AiAgentPage } from './pages/AiAgentPage';
 import { DebugLogsPage } from './pages/DebugLogsPage';
 import { CoveragePage } from './pages/CoveragePage';
+import { CodeInspectorPage } from './pages/CodeInspectorPage';
 import { ExportPage } from './pages/ExportPage';
 import { ImportPage } from './pages/ImportPage';
 import { IntegrationsPage } from './pages/IntegrationsPage';
@@ -35,6 +36,7 @@ const MODULES: ModuleItem[] = [
   { id: 'records', label: 'Record Inspector', icon: '▤', available: true, group: 'Build' },
   { id: 'soql', label: 'SOQL', icon: '⌘', available: true, group: 'Build' },
   { id: 'run-apex', label: 'Run Apex', icon: '›_', available: true, group: 'Build' },
+  { id: 'code', label: 'Code Inspector', icon: '</>', available: true, group: 'Build' },
   { id: 'logs', label: 'Debug Logs', icon: '≡', available: true, group: 'Build' },
   { id: 'org-info', label: 'Org Info', icon: '◎', available: true, group: 'Build' },
   { id: 'export', label: 'Export', icon: '↓', available: true, group: 'Build' },
@@ -202,6 +204,12 @@ export function WorkspaceApp() {
             <RunApexPage
               key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}`}
               org={selectedOrg}
+            />
+          ) : activeModule.id === 'code' ? (
+            <CodeInspectorPage
+              key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}:${currentRecordId ?? 'browse'}`}
+              org={selectedOrg}
+              currentRecordId={currentRecordId}
             />
           ) : activeModule.id === 'import' ? (
             <ImportPage

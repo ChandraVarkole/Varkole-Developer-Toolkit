@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { OrgIdentity, OrgInfo, OrgLicenseUsage } from '@varkole/shared';
 import { sendMessage } from '../api';
+import { CopyButton } from '../components/CopyButton';
 import { EmptyState, InlineError } from '../components/Status';
 
 export function OrgInfoPage({ org }: { org?: OrgIdentity | undefined }) {
@@ -59,7 +60,7 @@ export function OrgInfoPage({ org }: { org?: OrgIdentity | undefined }) {
           </section>
 
           <section className="detail-grid" aria-label="Organization details">
-            <Detail label="Organization ID" value={info.id} mono />
+            <Detail label="Organization ID" value={info.id} mono copyable />
             <Detail label="Instance" value={info.instanceName ?? 'Not returned'} />
             <Detail label="Salesforce release" value={info.releaseName ?? 'Not returned'} />
             <Detail
@@ -67,8 +68,8 @@ export function OrgInfoPage({ org }: { org?: OrgIdentity | undefined }) {
               value={info.latestApiVersion ? `v${info.latestApiVersion}` : 'Not returned'}
             />
             <Detail label="Signed in as" value={info.displayName} />
-            <Detail label="Username" value={info.username} mono />
-            <Detail label="Instance URL" value={info.instanceUrl} mono />
+            <Detail label="Username" value={info.username} mono copyable />
+            <Detail label="Instance URL" value={info.instanceUrl} mono copyable />
             <Detail
               label="Fiscal year starts"
               value={
@@ -227,11 +228,24 @@ function formatLicenseCount(value: number | null): string {
   return value === null ? 'Not returned' : value.toLocaleString();
 }
 
-function Detail({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function Detail({
+  label,
+  value,
+  mono = false,
+  copyable = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  copyable?: boolean;
+}) {
   return (
     <div className="detail">
       <span>{label}</span>
-      <strong className={mono ? 'mono' : ''}>{value}</strong>
+      <div className="detail-copy-row">
+        <strong className={mono ? 'mono' : ''}>{value}</strong>
+        {copyable && <CopyButton value={value} label={`Copy ${label}`} compact />}
+      </div>
     </div>
   );
 }

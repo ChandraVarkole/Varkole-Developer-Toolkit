@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { QueryPage, QueryRecord } from '@varkole/shared';
+import { CopyButton } from './CopyButton';
+import { isCopyableTechnicalValue } from './copyable-values';
 import { recordIdFromQueryRecord, recordUrlForCell, salesforceRecordUrl } from './record-links';
 import { nextTableSort, sortQueryRecords, type TableSort } from './table-sort';
 
@@ -46,15 +48,14 @@ export function QueryResults({
   );
 
   return (
-    <section className={`results-card ${expandTable ? 'results-card-expanded' : ''}`}>
+    <section
+      className={`results-card ${expandTable ? 'results-card-expanded' : ''}`}
+      aria-label={`${modeLabel} query results`}
+    >
       <div className="results-toolbar">
         <div className="result-stats">
           <strong>{result.totalSize.toLocaleString()}</strong> total rows
-          <span>Page {pageNumber}</span>
-          <span>{result.elapsedMs} ms</span>
-          <span>{modeLabel}</span>
-          {result.apiUsage && <span>{result.apiUsage}</span>}
-          {recordBaseUrl && <span>{new URL(recordBaseUrl).hostname}</span>}
+          {(pageNumber > 1 || result.nextRecordsUrl) && <span>Page {pageNumber}</span>}
         </div>
         <label className="result-filter">
           <span className="sr-only">Filter current page</span>
@@ -124,15 +125,25 @@ export function QueryResults({
                     {columns.map((column) => {
                       const value = formatCell(getPath(record, column));
                       const recordUrl = recordUrlForCell(recordBaseUrl, column, value);
+                      const copyable = isCopyableTechnicalValue(column, value);
                       return (
                         <td key={column} className={recordUrl ? 'mono cell-id' : ''} title={value}>
-                          {recordUrl ? (
-                            <a href={recordUrl} target="_blank" rel="noreferrer noopener">
-                              {value}
-                            </a>
-                          ) : (
-                            value || <span className="null">null</span>
-                          )}
+                          <span className="table-cell-value">
+                            {recordUrl ? (
+                              <a href={recordUrl} target="_blank" rel="noreferrer noopener">
+                                {value}
+                              </a>
+                            ) : (
+                              value || <span className="null">null</span>
+                            )}
+                            {copyable && (
+                              <CopyButton
+                                value={value}
+                                label={`Copy ${humanizeColumn(column)}`}
+                                compact
+                              />
+                            )}
+                          </span>
                         </td>
                       );
                     })}

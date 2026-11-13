@@ -32,7 +32,9 @@ Pin the extension, open a signed-in Salesforce tab, refresh that tab once after 
 click Varkole. A compact right-side drawer with vertical navigation opens over Salesforce and
 immediately uses the current user's existing access. On a Salesforce record page it opens Record
 Inspector and loads the current record automatically. The left-edge chevron hides the drawer, the
-small Varkole launcher restores it, and the expand control offers the secondary full-page workspace.
+small Varkole launcher restores it, the left edge can be dragged to resize it, and the expand control
+offers the secondary full-page workspace. Code Inspector provides searchable, read-only access to
+unmanaged Apex, LWC, Aura, and Visualforce source exposed by the current user's Tooling API access.
 
 ## Optional Salesforce External Client App registration
 

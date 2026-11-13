@@ -1,17 +1,24 @@
 import { recordIdFromSalesforceUrl } from './record-context';
 
 const HOST_ID = 'varkole-cloud-code-guru-root';
+const PANEL_WIDTH_KEY = 'embedded-panel-width-v1';
+const DEFAULT_PANEL_WIDTH_RATIO = 0.54;
+const MIN_PANEL_WIDTH = 440;
+const MAX_PANEL_WIDTH = 1280;
 
 type PanelMessage = { type: 'TOGGLE_VARKOLE_PANEL' | 'OPEN_VARKOLE_PANEL' };
 
 let panelWrapper: HTMLDivElement | undefined;
 let panelFrame: HTMLIFrameElement | undefined;
+let panelHost: HTMLDivElement | undefined;
+let panelWidth: number | undefined;
 let isOpen = false;
 
 function initialize() {
   if (panelWrapper || document.getElementById(HOST_ID)) return;
 
   const host = document.createElement('div');
+  panelHost = host;
   host.id = HOST_ID;
   host.style.all = 'initial';
   const shadow = host.attachShadow({ mode: 'closed' });
@@ -48,6 +55,47 @@ function initialize() {
   collapse.setAttribute('aria-label', 'Hide Varkole');
   collapse.textContent = '›';
 
+  const resizeHandle = document.createElement('div');
+  resizeHandle.className = 'resize-handle';
+  resizeHandle.tabIndex = 0;
+  resizeHandle.setAttribute('role', 'separator');
+  resizeHandle.setAttribute('aria-orientation', 'vertical');
+  resizeHandle.setAttribute('aria-label', 'Resize Varkole panel');
+  resizeHandle.setAttribute('aria-valuemin', String(MIN_PANEL_WIDTH));
+  resizeHandle.setAttribute('aria-valuemax', String(MAX_PANEL_WIDTH));
+  resizeHandle.title = 'Drag to resize · Double-click to reset';
+  resizeHandle.textContent = '⋮';
+
+  resizeHandle.addEventListener('pointerdown', (event) => {
+    if (window.innerWidth <= 900) return;
+    event.preventDefault();
+    resizeHandle.setPointerCapture(event.pointerId);
+    resizeHandle.classList.add('dragging');
+  });
+  resizeHandle.addEventListener('pointermove', (event) => {
+    if (!resizeHandle.hasPointerCapture(event.pointerId)) return;
+    applyPanelWidth(window.innerWidth - event.clientX, false);
+  });
+  const finishResize = (event: PointerEvent) => {
+    if (!resizeHandle.hasPointerCapture(event.pointerId)) return;
+    resizeHandle.releasePointerCapture(event.pointerId);
+    resizeHandle.classList.remove('dragging');
+    if (panelWidth) void chrome.storage.local.set({ [PANEL_WIDTH_KEY]: panelWidth });
+  };
+  resizeHandle.addEventListener('pointerup', finishResize);
+  resizeHandle.addEventListener('pointercancel', finishResize);
+  resizeHandle.addEventListener('dblclick', () => resetPanelWidth());
+  resizeHandle.addEventListener('keydown', (event) => {
+    if (event.key === 'Home') {
+      resetPanelWidth();
+      return;
+    }
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    const current = panelWidth ?? defaultPanelWidth();
+    applyPanelWidth(current + (event.key === 'ArrowLeft' ? 40 : -40));
+  });
+
   const sendRecordContext = () => {
     frame.contentWindow?.postMessage(
       { type: 'VARKOLE_RECORD_CONTEXT', recordId: recordIdFromSalesforceUrl(location.href) },
@@ -64,9 +112,33 @@ function initialize() {
     if (event.key === 'Escape' && isOpen) setOpen(false);
   });
 
-  wrapper.append(launcher, collapse, frame);
+  wrapper.append(launcher, collapse, resizeHandle, frame);
   shadow.append(style, wrapper);
   document.documentElement.append(host);
+  void chrome.storage.local.get(PANEL_WIDTH_KEY).then((stored) => {
+    const saved = stored[PANEL_WIDTH_KEY];
+    if (typeof saved === 'number') applyPanelWidth(saved, false);
+  });
+}
+
+function applyPanelWidth(width: number, persist = true) {
+  if (!panelHost || window.innerWidth <= 900) return;
+  const maximum = Math.min(MAX_PANEL_WIDTH, window.innerWidth - 48);
+  panelWidth = Math.round(Math.max(Math.min(MIN_PANEL_WIDTH, maximum), Math.min(width, maximum)));
+  panelHost.style.setProperty('--varkole-drawer-width', `${panelWidth}px`);
+  panelWrapper?.querySelector('.resize-handle')?.setAttribute('aria-valuenow', String(panelWidth));
+  if (persist) void chrome.storage.local.set({ [PANEL_WIDTH_KEY]: panelWidth });
+}
+
+function defaultPanelWidth() {
+  return Math.min(
+    MAX_PANEL_WIDTH,
+    Math.max(MIN_PANEL_WIDTH, window.innerWidth * DEFAULT_PANEL_WIDTH_RATIO),
+  );
+}
+
+function resetPanelWidth() {
+  applyPanelWidth(defaultPanelWidth());
 }
 
 function setOpen(open: boolean) {
@@ -91,6 +163,9 @@ function sendRecordContextWhenUrlChanges() {
 
 window.addEventListener('hashchange', sendRecordContextWhenUrlChanges);
 window.addEventListener('popstate', sendRecordContextWhenUrlChanges);
+window.addEventListener('resize', () => {
+  if (panelWidth && window.innerWidth > 900) applyPanelWidth(panelWidth, false);
+});
 window.setInterval(sendRecordContextWhenUrlChanges, 750);
 
 const PANEL_STYLES = `
@@ -130,15 +205,29 @@ const PANEL_STYLES = `
     transition: transform .2s ease, opacity .2s ease, visibility 0s linear .2s;
   }
   .collapse:hover { color: white; background: #0b347b; }
+  .resize-handle {
+    position: fixed; z-index: 2147483647; right: calc(var(--varkole-drawer-width) - 7px); top: 0;
+    width: 14px; height: 100vh; display: flex; align-items: center; justify-content: center;
+    color: #dff5ff; font: 800 18px/1 system-ui; cursor: col-resize; touch-action: none;
+    opacity: 0; visibility: hidden; pointer-events: none;
+  }
+  .resize-handle::after {
+    content: ''; position: absolute; z-index: -1; left: 6px; top: 0; width: 2px; height: 100%;
+    background: rgba(22,201,244,.7); opacity: 0; transition: opacity .16s ease;
+  }
+  .resize-handle:hover::after, .resize-handle.dragging::after { opacity: 1; }
   .open .collapse {
     opacity: 1; visibility: visible; pointer-events: auto;
     transform: translateY(-50%) translateX(0);
     transition: transform .2s ease, opacity .2s ease, visibility 0s;
   }
+  .open .resize-handle { opacity: 1; visibility: visible; pointer-events: auto; }
   .open .launcher { opacity: 0; pointer-events: none; }
   @media (max-width: 900px) {
     :host { --varkole-drawer-width: 100vw; }
+    .panel { width: 100vw; }
     .collapse { right: auto; left: 8px; border-right: 1px solid rgba(118,151,196,.45); border-radius: 10px; }
+    .resize-handle { display: none; }
   }
   @media (prefers-reduced-motion: reduce) { .panel, .launcher, .collapse { transition: none; } }
 `;

@@ -10,6 +10,7 @@ import type {
 } from '@varkole/shared';
 import { sendMessage } from '../api';
 import { ObjectFieldPicker } from '../components/ObjectFieldPicker';
+import { CopyButton } from '../components/CopyButton';
 import { QueryResults } from '../components/QueryResults';
 import { EmptyState, InlineError } from '../components/Status';
 import { buildRecordsQuery, inferObjectFromRecordId } from './records-query';
@@ -339,6 +340,9 @@ function RecordField({
         <code>{name}</code>
       </div>
       <p className={formatted ? '' : 'null'}>{formatted || 'null'}</p>
+      {isCopyableRecordValue(name, value) && formatted && (
+        <CopyButton value={formatted} label={`Copy ${field?.label ?? name}`} compact />
+      )}
       <div className="field-meta">
         <span>{field?.type ?? typeof value}</span>
         {typeof field?.length === 'number' && field.length > 0 && (
@@ -376,4 +380,13 @@ function formatRecordValue(value: unknown): string {
   }
   if (typeof value === 'object') return JSON.stringify(value, null, 2);
   return '';
+}
+
+function isCopyableRecordValue(name: string, value: unknown): boolean {
+  return (
+    (value !== null && typeof value === 'object') ||
+    /(?:^|_)Id$/.test(name) ||
+    /Id$/.test(name) ||
+    /^(Username|DeveloperName|ApiName|NamespacePrefix|InstanceUrl|Url)$/i.test(name)
+  );
 }

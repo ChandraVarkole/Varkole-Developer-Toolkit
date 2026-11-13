@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { OrgIdentity, SalesforceTabInfo } from '@varkole/shared';
 import { sendMessage } from '../api';
 import { EmptyState, InlineError } from '../components/Status';
@@ -9,6 +9,17 @@ export function AppTabsPage({ org }: { org?: OrgIdentity | undefined }) {
   const [tabs, setTabs] = useState<SalesforceTabInfo[]>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState('');
+  const visibleTabs = useMemo(() => {
+    const needle = filter.trim().toLowerCase();
+    return (tabs ?? []).filter(
+      (tab) =>
+        !needle ||
+        tab.label.toLowerCase().includes(needle) ||
+        tab.name?.toLowerCase().includes(needle) ||
+        tab.sobjectName?.toLowerCase().includes(needle),
+    );
+  }, [filter, tabs]);
 
   async function load() {
     if (!org) return;
@@ -67,8 +78,17 @@ export function AppTabsPage({ org }: { org?: OrgIdentity | undefined }) {
       )}
       {tabs && tabs.length > 0 && (
         <section className="section-card app-tabs-card">
+          <label className="app-tabs-search">
+            <span className="sr-only">Search Salesforce tabs</span>
+            <input
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+              placeholder="Search tabs…"
+              type="search"
+            />
+          </label>
           <div className="app-tabs-grid" aria-label="Salesforce app navigation tabs">
-            {tabs.map((tab, index) => {
+            {visibleTabs.map((tab, index) => {
               const href = salesforceTabUrl(org, tab);
               return (
                 <div
@@ -94,6 +114,7 @@ export function AppTabsPage({ org }: { org?: OrgIdentity | undefined }) {
                 </div>
               );
             })}
+            {visibleTabs.length === 0 && <p className="muted">No tabs match this search.</p>}
           </div>
         </section>
       )}

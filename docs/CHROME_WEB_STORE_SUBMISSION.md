@@ -1,7 +1,7 @@
 # Chrome Web Store submission worksheet
 
 This worksheet contains the proposed dashboard entries for **Varkole Developer Toolkit BETA**
-version 0.7.20. Re-check every entry against the uploaded ZIP before submission.
+version 0.7.21. Re-check every entry against the uploaded ZIP before submission.
 
 ## Submission gate
 
@@ -15,10 +15,10 @@ Do not select **Submit for review** until all of these are true:
 
 ## Package
 
-- File: `apps/extension/varkole-developer-toolkit-v0.7.20-beta.zip`
-- Manifest version: `0.7.20`
+- File: `apps/extension/varkole-developer-toolkit-v0.7.21-beta.zip`
+- Manifest version: `0.7.21`
 - Expected SHA-256:
-  `e9f074f32b309d4938a6d5e6b5604ec99e8fc3dd643dd1ccda5e5f21b51fc2ea`
+  `5f020fe4546235ecae7535b6aad2da93a11b82ce69d256c6c5376ada6cd0d3ab`
 - `manifest.json` is at the ZIP root.
 
 ## Store listing
@@ -53,6 +53,7 @@ English
 > - Automatic current-record inspection for Lightning and Classic
 > - SOQL with object and field suggestions, history, sortable results, and record links
 > - Execute Anonymous Apex with explicit Production safeguards
+> - Read-only inspection of accessible unmanaged Apex, LWC, Aura, and Visualforce source
 > - Inline debug-log viewing and search
 > - Org-wide and per-file Apex code coverage with guarded test execution
 > - CSV export and guided create, update, and delete imports with confirmations
