@@ -17,7 +17,10 @@ directly from the extension to the provider selected by the user.
 - In memory/UI: current query text and result page, recent AI chat messages, and bounded structured
   AI lookup evidence used for follow-up grounding. Evidence can include queries, retrieved records,
   timestamps, relationship coverage, completeness, and errors. It is cleared with the extension
-  page/reload and is never written to local or sync storage.
+  page/reload and is never written to local or sync storage. Code Inspector's user-initiated picker
+  reads only Salesforce component tag names and Aura component descriptors from the selected click
+  path or newly rendered component hosts; it does not read field values, input values, labels, or
+  rendered page text.
 - Network: Salesforce identity and REST/Tooling requests; OAuth only when the fallback is selected.
   After the user affirmatively approves the provider-specific disclosure and sends a question, the
   automatically selected context and recent chat messages go directly to OpenAI, Anthropic, Google

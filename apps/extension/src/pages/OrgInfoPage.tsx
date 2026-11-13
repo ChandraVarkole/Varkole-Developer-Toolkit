@@ -257,6 +257,8 @@ function importantLimits(limits: OrgInfo['limits']) {
     'FileStorageMB',
     'DailyBulkApiRequests',
     'ConcurrentAsyncGetReportInstances',
+    'SingleEmail',
+    'MassEmail',
   ];
   return preferred.filter((key) => limits[key]).map((key) => [key, limits[key]!] as const);
 }

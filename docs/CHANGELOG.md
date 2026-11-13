@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.25 — Click-target code inspection
+
+- Added an explicit Pick component mode that lets the user click a Salesforce quick action, tab,
+  modal, or rendered component and resolves that exact LWC or Aura bundle before loading its
+  accessible dependency-linked code.
+- Added a bounded post-click observer for components Salesforce renders lazily after the click,
+  while ignoring standard Lightning framework wrappers.
+- Kept the picker privacy-safe: it reads only component tag names and Aura identity descriptors,
+  never field values, input values, labels, or rendered page text.
+- Added Single Email and Mass Email usage to the existing Org Info platform-limit cards when
+  Salesforce returns those limits.
+
 ## 0.7.24 — Resizable results and cross-org code context
 
 - Added drag-to-resize result-table columns, keyboard resizing with the arrow keys, and

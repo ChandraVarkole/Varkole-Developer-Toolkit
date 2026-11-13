@@ -1,4 +1,10 @@
 import { recordIdFromSalesforceUrl } from './record-context';
+import {
+  componentHintFromComposedPath,
+  componentHintFromElement,
+  type ComponentPickResultMessage,
+  type PickedComponentContext,
+} from './component-picker';
 
 const HOST_ID = 'varkole-cloud-code-guru-root';
 const PANEL_WIDTH_KEY = 'embedded-panel-width-v1';
@@ -13,6 +19,7 @@ let panelFrame: HTMLIFrameElement | undefined;
 let panelHost: HTMLDivElement | undefined;
 let panelWidth: number | undefined;
 let isOpen = false;
+let componentPickerCleanup: (() => void) | undefined;
 
 function initialize() {
   if (panelWrapper || document.getElementById(HOST_ID)) return;
@@ -113,7 +120,7 @@ function initialize() {
   });
   collapse.addEventListener('click', () => setOpen(false));
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && isOpen) setOpen(false);
+    if (event.key === 'Escape' && isOpen && !componentPickerCleanup) setOpen(false);
   });
 
   wrapper.append(launcher, collapse, resizeHandle, frame);
@@ -151,6 +158,147 @@ function setOpen(open: boolean) {
   panelWrapper.classList.toggle('open', open);
 }
 
+function startComponentPicker() {
+  componentPickerCleanup?.();
+
+  const outline = document.createElement('div');
+  outline.id = 'varkole-component-picker-outline';
+  Object.assign(outline.style, {
+    position: 'fixed',
+    zIndex: '2147483645',
+    display: 'none',
+    pointerEvents: 'none',
+    border: '2px solid #12c9f4',
+    borderRadius: '6px',
+    background: 'rgba(18, 201, 244, 0.08)',
+    boxShadow: '0 0 0 3px rgba(18, 201, 244, 0.18)',
+  });
+
+  const instruction = document.createElement('div');
+  instruction.id = 'varkole-component-picker-instruction';
+  instruction.textContent = 'Varkole: click a Salesforce component · Esc to cancel';
+  Object.assign(instruction.style, {
+    position: 'fixed',
+    zIndex: '2147483645',
+    top: '14px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    padding: '9px 14px',
+    border: '1px solid rgba(18, 201, 244, 0.65)',
+    borderRadius: '999px',
+    color: '#ffffff',
+    background: '#071a4a',
+    boxShadow: '0 8px 24px rgba(3, 16, 48, 0.28)',
+    pointerEvents: 'none',
+    font: '700 13px/1.2 system-ui, sans-serif',
+  });
+  document.documentElement.append(outline, instruction);
+
+  let observer: MutationObserver | undefined;
+  let timeout: number | undefined;
+
+  const finish = (result?: ComponentPickResultMessage) => {
+    observer?.disconnect();
+    if (timeout !== undefined) window.clearTimeout(timeout);
+    document.removeEventListener('pointermove', handlePointerMove, true);
+    document.removeEventListener('click', handleClick, true);
+    document.removeEventListener('keydown', handleKeydown, true);
+    outline.remove();
+    instruction.remove();
+    componentPickerCleanup = undefined;
+    if (result) sendComponentPickResult(result);
+  };
+
+  const waitForRenderedComponent = () => {
+    instruction.textContent = 'Varkole: waiting for the selected component to render…';
+    observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (!(node instanceof Element)) continue;
+          const component = findComponentInAddedTree(node);
+          if (component) {
+            finish({ type: 'VARKOLE_COMPONENT_PICK_RESULT', status: 'found', component });
+            return;
+          }
+        }
+      }
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    timeout = window.setTimeout(() => {
+      finish({
+        type: 'VARKOLE_COMPONENT_PICK_RESULT',
+        status: 'not-found',
+        message:
+          'No custom LWC or Aura component marker appeared. This may be a standard Salesforce action, Flow, or protected managed component.',
+      });
+    }, 3_500);
+  };
+
+  function handlePointerMove(event: PointerEvent) {
+    const element = event
+      .composedPath()
+      .find((target): target is Element => target instanceof Element);
+    if (!element || element === outline || element === instruction) return;
+    const rectangle = element.getBoundingClientRect();
+    if (!rectangle.width || !rectangle.height) return;
+    Object.assign(outline.style, {
+      display: 'block',
+      left: `${Math.max(0, rectangle.left)}px`,
+      top: `${Math.max(0, rectangle.top)}px`,
+      width: `${Math.max(0, Math.min(rectangle.width, window.innerWidth - rectangle.left))}px`,
+      height: `${Math.max(0, Math.min(rectangle.height, window.innerHeight - rectangle.top))}px`,
+    });
+  }
+
+  function handleClick(event: MouseEvent) {
+    document.removeEventListener('pointermove', handlePointerMove, true);
+    document.removeEventListener('click', handleClick, true);
+    outline.style.display = 'none';
+    const component = componentHintFromComposedPath(event.composedPath());
+    if (component) {
+      finish({ type: 'VARKOLE_COMPONENT_PICK_RESULT', status: 'found', component });
+      return;
+    }
+    // The Salesforce click is intentionally allowed to continue. Quick actions and tabs often
+    // create their custom component host only after the click handler completes.
+    waitForRenderedComponent();
+  }
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    finish({
+      type: 'VARKOLE_COMPONENT_PICK_RESULT',
+      status: 'cancelled',
+      message: 'Component selection was cancelled.',
+    });
+  }
+
+  document.addEventListener('pointermove', handlePointerMove, true);
+  document.addEventListener('click', handleClick, true);
+  document.addEventListener('keydown', handleKeydown, true);
+  componentPickerCleanup = () => finish();
+}
+
+function findComponentInAddedTree(root: Element): PickedComponentContext | undefined {
+  const direct = componentHintFromElement(root);
+  if (direct) return direct;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  let inspected = 0;
+  while (walker.nextNode() && inspected < 800) {
+    inspected += 1;
+    if (!(walker.currentNode instanceof Element)) continue;
+    const hint = componentHintFromElement(walker.currentNode);
+    if (hint) return hint;
+  }
+  return undefined;
+}
+
+function sendComponentPickResult(result: ComponentPickResultMessage) {
+  panelFrame?.contentWindow?.postMessage(result, new URL(chrome.runtime.getURL('/')).origin);
+}
+
 function sendCurrentRecordContext() {
   panelFrame?.contentWindow?.postMessage(
     {
@@ -175,6 +323,20 @@ window.addEventListener('resize', () => {
   if (panelWidth && window.innerWidth > 900) applyPanelWidth(panelWidth, false);
 });
 window.setInterval(sendRecordContextWhenUrlChanges, 750);
+
+window.addEventListener('message', (event: MessageEvent<unknown>) => {
+  const extensionOrigin = new URL(chrome.runtime.getURL('/')).origin;
+  if (
+    event.source !== panelFrame?.contentWindow ||
+    event.origin !== extensionOrigin ||
+    !event.data ||
+    typeof event.data !== 'object' ||
+    (event.data as { type?: unknown }).type !== 'VARKOLE_START_COMPONENT_PICK'
+  ) {
+    return;
+  }
+  startComponentPicker();
+});
 
 const PANEL_STYLES = `
   :host { all: initial; --varkole-drawer-width: clamp(660px, 54vw, 980px); }

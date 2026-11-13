@@ -4,6 +4,7 @@ import type {
   SalesforceActionOverride,
   SalesforceObjectDescribe,
 } from '@varkole/shared';
+import type { PickedComponentContext } from '../component-picker';
 
 export type CodeResourceKind =
   | 'Lightning page'
@@ -14,7 +15,11 @@ export type CodeResourceKind =
   | 'Visualforce page'
   | 'Visualforce component';
 
-export type CodeRelationship = 'Current page' | 'Object automation' | 'Related component';
+export type CodeRelationship =
+  | 'Selected component'
+  | 'Current page'
+  | 'Object automation'
+  | 'Related component';
 
 export interface CodeResource {
   id: string;
@@ -186,6 +191,31 @@ export function directContextQueries(context?: SalesforcePageContext): Array<{
   return [];
 }
 
+export function pickedComponentQueries(component: PickedComponentContext): Array<{
+  kind: CodeResourceKind;
+  query: string;
+  relationship: CodeRelationship;
+}> {
+  const name = safeName(component.componentName);
+  const namespace = namespacePredicate(component.namespace);
+  const queries = [];
+  if (component.kindHint !== 'aura') {
+    queries.push({
+      kind: 'LWC' as const,
+      query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM LightningComponentBundle WHERE DeveloperName = '${name}'${namespace} LIMIT 25`,
+      relationship: 'Selected component' as const,
+    });
+  }
+  if (component.kindHint !== 'lwc') {
+    queries.push({
+      kind: 'Aura' as const,
+      query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM AuraDefinitionBundle WHERE DeveloperName = '${name}'${namespace} LIMIT 25`,
+      relationship: 'Selected component' as const,
+    });
+  }
+  return queries;
+}
+
 export function recordTriggerQuery(objectApiName: string): string {
   return `SELECT Id, Name, NamespacePrefix, ApiVersion, Status, TableEnumOrId FROM ApexTrigger WHERE TableEnumOrId = '${safeName(objectApiName)}' ORDER BY Name LIMIT 100`;
 }
@@ -303,9 +333,10 @@ export function codeFilesFromRecords(resource: CodeResource, records: QueryRecor
 
 export function sortContextResources(resources: CodeResource[]): CodeResource[] {
   const priority: Record<CodeRelationship, number> = {
-    'Current page': 0,
-    'Object automation': 1,
-    'Related component': 2,
+    'Selected component': 0,
+    'Current page': 1,
+    'Object automation': 2,
+    'Related component': 3,
   };
   return uniqueCodeResources(resources).sort(
     (left, right) =>
@@ -371,6 +402,11 @@ function safeName(value: string): string {
     throw new Error('Salesforce returned an invalid metadata name.');
   }
   return value;
+}
+
+function namespacePredicate(value?: string): string {
+  if (!value || value.toLowerCase() === 'c') return ' AND NamespacePrefix = null';
+  return ` AND NamespacePrefix = '${safeName(value)}'`;
 }
 
 function componentDeveloperName(value: string): string {

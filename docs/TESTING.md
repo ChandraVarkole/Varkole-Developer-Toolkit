@@ -37,7 +37,11 @@
     drawer is open and verify the inspector follows the URL. Also test a pasted 15/18-character ID
     and an inaccessible record. Confirm the detail list appears without requiring Load or Refresh.
 14. In Export, preview a query and download CSV/JSON; verify relationship fields are flattened, CSV quotes are escaped and formula-like values are prefixed safely.
-15. Open Code Inspector in an org with local Apex, LWC, Aura, and Visualforce resources. Verify
+15. Open Code Inspector in the embedded drawer, choose Pick component, and click a custom LWC/Aura
+    quick action, tab, modal, or rendered component. Verify the exact component becomes the root,
+    its accessible dependencies load, standard Lightning wrappers are ignored, and field/input
+    values are never displayed by the picker. Also verify the page-context fallback with local Apex,
+    LWC, Aura, and Visualforce resources.
     inventory search/type filtering, source retrieval, source/name copy, related-code links, and
     partial availability when one Tooling object is inaccessible. On a record page, confirm the
     current object is shown and its matching triggers sort first. Confirm managed-package source is

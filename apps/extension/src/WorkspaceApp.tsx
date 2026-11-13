@@ -22,6 +22,11 @@ import { RunApexPage } from './pages/RunApexPage';
 import { SoqlPage } from './pages/SoqlPage';
 import { orgName } from './org';
 import { openWorkspace } from './api';
+import type {
+  ComponentPickResult,
+  ComponentPickResultMessage,
+  PickedComponentContext,
+} from './component-picker';
 
 interface ModuleItem {
   id: string;
@@ -64,6 +69,8 @@ export function WorkspaceApp() {
   const embedded = searchParams.get('embedded') === '1';
   const [currentRecordId, setCurrentRecordId] = useState(searchParams.get('recordId') ?? undefined);
   const [currentPageUrl, setCurrentPageUrl] = useState(searchParams.get('pageUrl') ?? undefined);
+  const [pickedComponent, setPickedComponent] = useState<PickedComponentContext>();
+  const [componentPickResult, setComponentPickResult] = useState<ComponentPickResult>();
   const { state, setState, error, loading } = useExtensionState();
   const [module, setModule] = useState(readHash());
   const [showConnect, setShowConnect] = useState(false);
@@ -76,12 +83,16 @@ export function WorkspaceApp() {
 
   useEffect(() => {
     const receiveContext = (event: MessageEvent<unknown>) => {
-      if (event.source !== window.parent || !isPageContextMessage(event.data)) return;
-      setCurrentRecordId(event.data.recordId);
-      setCurrentPageUrl(event.data.pageUrl);
-      if (event.data.recordId) {
-        setModule('records');
-        window.history.replaceState(null, '', '#records');
+      if (event.source !== window.parent) return;
+      if (isPageContextMessage(event.data)) {
+        const pageContextMessage = event.data;
+        setCurrentRecordId(pageContextMessage.recordId);
+        setCurrentPageUrl(pageContextMessage.pageUrl);
+        return;
+      }
+      if (isComponentPickResultMessage(event.data)) {
+        setComponentPickResult(event.data);
+        if (event.data.status === 'found') setPickedComponent(event.data.component);
       }
     };
     window.addEventListener('message', receiveContext);
@@ -96,6 +107,10 @@ export function WorkspaceApp() {
     MODULES.find((item) => item.id === module) ?? MODULES.find((item) => item.id === 'soql')!;
 
   function navigate(id: string) {
+    if (id !== 'code') {
+      setPickedComponent(undefined);
+      setComponentPickResult(undefined);
+    }
     setModule(id);
     window.history.replaceState(null, '', `#${id}`);
   }
@@ -218,6 +233,13 @@ export function WorkspaceApp() {
               org={selectedOrg}
               currentRecordId={currentRecordId}
               currentPageUrl={currentPageUrl}
+              embedded={embedded}
+              pickedComponent={pickedComponent}
+              componentPickResult={componentPickResult}
+              onClearPickedComponent={() => {
+                setPickedComponent(undefined);
+                setComponentPickResult(undefined);
+              }}
             />
           ) : activeModule.id === 'import' ? (
             <ImportPage
@@ -469,5 +491,37 @@ function isPageContextMessage(value: unknown): value is {
       (typeof message.pageUrl === 'string' &&
         message.pageUrl.length <= 8_192 &&
         /^https?:\/\//.test(message.pageUrl)))
+  );
+}
+
+function isComponentPickResultMessage(value: unknown): value is ComponentPickResultMessage {
+  if (!value || typeof value !== 'object') return false;
+  const message = value as {
+    type?: unknown;
+    status?: unknown;
+    message?: unknown;
+    component?: unknown;
+  };
+  if (message.type !== 'VARKOLE_COMPONENT_PICK_RESULT') return false;
+  if (message.status === 'cancelled' || message.status === 'not-found') {
+    return typeof message.message === 'string' && message.message.length <= 500;
+  }
+  if (message.status !== 'found' || !message.component || typeof message.component !== 'object') {
+    return false;
+  }
+  const component = message.component as Record<string, unknown>;
+  return (
+    typeof component.componentName === 'string' &&
+    /^[A-Za-z][A-Za-z0-9_]{0,159}$/.test(component.componentName) &&
+    (component.kindHint === 'lwc' ||
+      component.kindHint === 'aura' ||
+      component.kindHint === 'unknown') &&
+    (component.namespace === undefined ||
+      (typeof component.namespace === 'string' &&
+        /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(component.namespace))) &&
+    (component.tagName === undefined ||
+      (typeof component.tagName === 'string' && component.tagName.length <= 240)) &&
+    (component.descriptor === undefined ||
+      (typeof component.descriptor === 'string' && component.descriptor.length <= 240))
   );
 }

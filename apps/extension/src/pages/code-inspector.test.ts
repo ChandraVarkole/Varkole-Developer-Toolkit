@@ -7,6 +7,7 @@ import {
   customTabDependencyQuery,
   directContextQueries,
   pageContextFromSalesforceUrl,
+  pickedComponentQueries,
   recordTriggerQuery,
   sourceQuery,
   type CodeResource,
@@ -61,6 +62,23 @@ describe('Code Inspector context helpers', () => {
       ),
     ).toMatchObject({ pageId: '0M0000000000002AAA' });
     expect(recordTriggerQuery('Invoice__c')).toContain("TableEnumOrId = 'Invoice__c'");
+  });
+
+  it('builds exact selected-component queries without an org-wide inventory', () => {
+    const [namespaced] = pickedComponentQueries({
+      componentName: 'resultSalesAppointment',
+      kindHint: 'lwc',
+      namespace: 'i360core',
+    });
+    expect(namespaced?.kind).toBe('LWC');
+    expect(namespaced?.relationship).toBe('Selected component');
+    expect(namespaced?.query).toContain(
+      "DeveloperName = 'resultSalesAppointment' AND NamespacePrefix = 'i360core'",
+    );
+    expect(
+      pickedComponentQueries({ componentName: 'localAction', kindHint: 'aura', namespace: 'c' })[0]
+        ?.query,
+    ).toContain("DeveloperName = 'localAction' AND NamespacePrefix = null");
   });
 
   it('keeps only supported UI and Apex dependencies', () => {

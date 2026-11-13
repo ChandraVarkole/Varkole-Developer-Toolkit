@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CustomTabMetadata, OrgIdentity, QueryPage, RecordInspection } from '@varkole/shared';
 import { sendMessage } from '../api';
+import type { ComponentPickResult, PickedComponentContext } from '../component-picker';
 import { CopyButton } from '../components/CopyButton';
 import { EmptyState, InlineError } from '../components/Status';
 import {
@@ -14,6 +15,7 @@ import {
   directContextQueries,
   overrideResourceQuery,
   pageContextFromSalesforceUrl,
+  pickedComponentQueries,
   recordTriggerQuery,
   sortContextResources,
   sourceQuery,
@@ -32,10 +34,18 @@ export function CodeInspectorPage({
   org,
   currentRecordId,
   currentPageUrl,
+  embedded,
+  pickedComponent,
+  componentPickResult,
+  onClearPickedComponent,
 }: {
   org?: OrgIdentity | undefined;
   currentRecordId?: string | undefined;
   currentPageUrl?: string | undefined;
+  embedded: boolean;
+  pickedComponent?: PickedComponentContext | undefined;
+  componentPickResult?: ComponentPickResult | undefined;
+  onClearPickedComponent: () => void;
 }) {
   const [resources, setResources] = useState<CodeResource[]>([]);
   const [selected, setSelected] = useState<CodeResource>();
@@ -48,6 +58,7 @@ export function CodeInspectorPage({
   const [error, setError] = useState<string>();
   const [sourceError, setSourceError] = useState<string>();
   const [contextNote, setContextNote] = useState<string>();
+  const [picking, setPicking] = useState(false);
   const pageContext = useMemo(() => pageContextFromSalesforceUrl(currentPageUrl), [currentPageUrl]);
 
   async function loadCurrentContext() {
@@ -59,93 +70,102 @@ export function CodeInspectorPage({
     setCurrentTabLabel(undefined);
     try {
       const roots: CodeResource[] = [];
-      roots.push(...(await runDefinitions(org, directContextQueries(pageContext))));
-
-      if (pageContext?.navigationTabName) {
-        let tabDependencyResources: CodeResource[] = [];
-        try {
-          const dependencyResult = await runToolingQuery(
-            org,
-            customTabDependencyQuery(pageContext.navigationTabName),
-          );
-          tabDependencyResources = codeResourcesFromDependencies(
-            dependencyResult.records,
-            'Current page',
-          );
-          roots.push(...tabDependencyResources);
-        } catch {
-          // Custom Tab dependencies aren't exposed in every org/API version. Metadata API is next.
-        }
-        try {
-          const tab = await sendMessage<CustomTabMetadata>({
-            type: 'GET_CUSTOM_TAB',
-            payload: { key: org.key, tabName: pageContext.navigationTabName },
-          });
-          setCurrentTabLabel(tab.label ?? tab.fullName);
-          let targets = customTabTargetQueries(tab);
-          if (!targets.length && tab.url) {
-            targets = directContextQueries(
-              pageContextFromSalesforceUrl(new URL(tab.url, org.instanceUrl).href),
-            );
-          }
-          roots.push(...(await runDefinitions(org, targets)));
-          if (!targets.length) {
-            setContextNote(
-              tab.customObject
-                ? 'This navigation item opens a custom object tab rather than a custom UI component.'
-                : 'Salesforce returned this custom tab but did not expose a supported component target.',
-            );
-          }
-        } catch {
-          setCurrentTabLabel(pageContext.navigationTabName);
-          if (!tabDependencyResources.length) {
-            roots.push(
-              ...(await runDefinitions(org, [
-                ...directContextQueries({
-                  ...pageContext,
-                  componentName: pageContext.navigationTabName,
-                }),
-              ])),
-            );
-            setContextNote(
-              'The Custom Tab metadata was not readable, so Varkole tried an exact same-name component lookup.',
-            );
-          }
-        }
-      }
-
-      if (currentRecordId) {
-        const inspection = await sendMessage<RecordInspection>({
-          type: 'INSPECT_RECORD',
-          payload: { key: org.key, recordId: currentRecordId },
-        });
-        setCurrentObject(inspection.objectApiName);
-
-        const triggers = await runToolingQuery(org, recordTriggerQuery(inspection.objectApiName));
-        roots.push(
-          ...triggers.records
-            .map((record) => codeResourceFromRecord('Apex trigger', record, 'Object automation'))
-            .filter((resource): resource is CodeResource => Boolean(resource)),
-        );
-
-        const override = activeRecordPageOverride(
-          inspection.describe,
-          pageContext?.experience ?? 'Classic',
-        );
-        if (override?.pageId) {
-          roots.push(...(await runDefinitions(org, overrideResourceQuery(override.pageId))));
-        } else if (override?.url) {
-          const overrideUrl = new URL(override.url, org.instanceUrl).href;
-          roots.push(
-            ...(await runDefinitions(
-              org,
-              directContextQueries(pageContextFromSalesforceUrl(overrideUrl)),
-            )),
-          );
-        } else if (!roots.some((resource) => resource.relationship === 'Current page')) {
+      if (pickedComponent) {
+        roots.push(...(await runDefinitions(org, pickedComponentQueries(pickedComponent))));
+        if (!roots.length) {
           setContextNote(
-            `This is the standard ${pageContext?.experience ?? 'Salesforce'} ${inspection.objectApiName} record page. No custom page source was exposed; object triggers are shown when available.`,
+            `Salesforce rendered ${pickedComponent.componentName}, but its bundle metadata is not readable in this session. It may be a protected managed component.`,
           );
+        }
+      } else {
+        roots.push(...(await runDefinitions(org, directContextQueries(pageContext))));
+
+        if (pageContext?.navigationTabName) {
+          let tabDependencyResources: CodeResource[] = [];
+          try {
+            const dependencyResult = await runToolingQuery(
+              org,
+              customTabDependencyQuery(pageContext.navigationTabName),
+            );
+            tabDependencyResources = codeResourcesFromDependencies(
+              dependencyResult.records,
+              'Current page',
+            );
+            roots.push(...tabDependencyResources);
+          } catch {
+            // Custom Tab dependencies aren't exposed in every org/API version. Metadata API is next.
+          }
+          try {
+            const tab = await sendMessage<CustomTabMetadata>({
+              type: 'GET_CUSTOM_TAB',
+              payload: { key: org.key, tabName: pageContext.navigationTabName },
+            });
+            setCurrentTabLabel(tab.label ?? tab.fullName);
+            let targets = customTabTargetQueries(tab);
+            if (!targets.length && tab.url) {
+              targets = directContextQueries(
+                pageContextFromSalesforceUrl(new URL(tab.url, org.instanceUrl).href),
+              );
+            }
+            roots.push(...(await runDefinitions(org, targets)));
+            if (!targets.length) {
+              setContextNote(
+                tab.customObject
+                  ? 'This navigation item opens a custom object tab rather than a custom UI component.'
+                  : 'Salesforce returned this custom tab but did not expose a supported component target.',
+              );
+            }
+          } catch {
+            setCurrentTabLabel(pageContext.navigationTabName);
+            if (!tabDependencyResources.length) {
+              roots.push(
+                ...(await runDefinitions(org, [
+                  ...directContextQueries({
+                    ...pageContext,
+                    componentName: pageContext.navigationTabName,
+                  }),
+                ])),
+              );
+              setContextNote(
+                'The Custom Tab metadata was not readable, so Varkole tried an exact same-name component lookup.',
+              );
+            }
+          }
+        }
+
+        if (currentRecordId) {
+          const inspection = await sendMessage<RecordInspection>({
+            type: 'INSPECT_RECORD',
+            payload: { key: org.key, recordId: currentRecordId },
+          });
+          setCurrentObject(inspection.objectApiName);
+
+          const triggers = await runToolingQuery(org, recordTriggerQuery(inspection.objectApiName));
+          roots.push(
+            ...triggers.records
+              .map((record) => codeResourceFromRecord('Apex trigger', record, 'Object automation'))
+              .filter((resource): resource is CodeResource => Boolean(resource)),
+          );
+
+          const override = activeRecordPageOverride(
+            inspection.describe,
+            pageContext?.experience ?? 'Classic',
+          );
+          if (override?.pageId) {
+            roots.push(...(await runDefinitions(org, overrideResourceQuery(override.pageId))));
+          } else if (override?.url) {
+            const overrideUrl = new URL(override.url, org.instanceUrl).href;
+            roots.push(
+              ...(await runDefinitions(
+                org,
+                directContextQueries(pageContextFromSalesforceUrl(overrideUrl)),
+              )),
+            );
+          } else if (!roots.some((resource) => resource.relationship === 'Current page')) {
+            setContextNote(
+              `This is the standard ${pageContext?.experience ?? 'Salesforce'} ${inspection.objectApiName} record page. No custom page source was exposed; object triggers are shown when available.`,
+            );
+          }
         }
       }
 
@@ -174,9 +194,11 @@ export function CodeInspectorPage({
         setContextNote(
           (note) =>
             note ??
-            (currentPageUrl
-              ? 'No accessible UI or Apex component is directly associated with this page.'
-              : 'Open Code Inspector from a Salesforce record, Visualforce page, component, or Apex setup page.'),
+            (pickedComponent
+              ? `No accessible source was returned for the selected ${pickedComponent.componentName} component.`
+              : currentPageUrl
+                ? 'No accessible UI or Apex component is directly associated with this page.'
+                : 'Open Code Inspector from a Salesforce record, Visualforce page, component, or Apex setup page.'),
         );
       }
     } catch (cause) {
@@ -196,7 +218,13 @@ export function CodeInspectorPage({
     void loadCurrentContext();
     // Refresh when the selected org or the Salesforce page changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [org?.key, currentRecordId, currentPageUrl]);
+  }, [org?.key, currentRecordId, currentPageUrl, pickedComponent]);
+
+  useEffect(() => {
+    if (!componentPickResult) return;
+    setPicking(false);
+    if (componentPickResult.status !== 'found') setContextNote(componentPickResult.message);
+  }, [componentPickResult]);
 
   useEffect(() => {
     if (!org || !selected) {
@@ -248,6 +276,14 @@ export function CodeInspectorPage({
     );
   }
 
+  function startComponentPick() {
+    if (!embedded || window.parent === window) return;
+    setPicking(true);
+    setError(undefined);
+    setContextNote('Click a quick action, tab, modal, or component in the Salesforce page.');
+    window.parent.postMessage({ type: 'VARKOLE_START_COMPONENT_PICK' }, '*');
+  }
+
   return (
     <div className="page-stack code-inspector-page">
       <header className="page-header">
@@ -256,29 +292,58 @@ export function CodeInspectorPage({
           <h1>Code Inspector</h1>
           <p>See only the accessible UI and Apex components related to this Salesforce page.</p>
         </div>
-        <button
-          className="button button-secondary button-compact"
-          type="button"
-          disabled={loading}
-          onClick={() => void loadCurrentContext()}
-        >
-          {loading ? 'Inspecting…' : 'Refresh inspection'}
-        </button>
+        <div className="page-header-actions">
+          {pickedComponent && (
+            <button
+              className="button button-ghost button-compact"
+              type="button"
+              onClick={onClearPickedComponent}
+            >
+              Inspect page instead
+            </button>
+          )}
+          <button
+            className="button button-primary button-compact"
+            type="button"
+            disabled={!embedded || picking}
+            onClick={startComponentPick}
+            title={
+              embedded ? 'Select a component in Salesforce' : 'Available in the embedded drawer'
+            }
+          >
+            {picking ? 'Click in Salesforce…' : 'Pick component'}
+          </button>
+          <button
+            className="button button-secondary button-compact"
+            type="button"
+            disabled={loading}
+            onClick={() => void loadCurrentContext()}
+          >
+            {loading ? 'Inspecting…' : 'Refresh'}
+          </button>
+        </div>
       </header>
 
       <div className="code-context-note">
-        <span>{pageContext?.experience ?? 'Salesforce'} context</span>
+        <span>
+          {pickedComponent
+            ? 'Selected UI component'
+            : `${pageContext?.experience ?? 'Salesforce'} context`}
+        </span>
         <strong>
-          {currentObject ??
+          {pickedComponent?.componentName ??
+            currentObject ??
             currentTabLabel ??
             pageContext?.visualforceName ??
             pageContext?.componentName ??
             'Current page'}
         </strong>
         <small>
-          {currentRecordId
-            ? `Record ${currentRecordId}`
-            : (pageContext?.pathname ?? 'Open the embedded extension from Salesforce')}
+          {pickedComponent
+            ? `${pickedComponent.kindHint.toUpperCase()}${pickedComponent.namespace ? ` · ${pickedComponent.namespace}` : ''}`
+            : currentRecordId
+              ? `Record ${currentRecordId}`
+              : (pageContext?.pathname ?? 'Open the embedded extension from Salesforce')}
         </small>
       </div>
       <InlineError message={error} />
@@ -368,9 +433,10 @@ export function CodeInspectorPage({
       </div>
 
       <p className="code-inspector-limit">
-        Varkole does not scan the entire org or scrape the rendered page. It follows the current
-        record/page metadata and Salesforce dependency metadata, then shows only source available to
-        this user. Managed-package internals remain hidden.
+        Pick component reads only Salesforce component identity markers from the click path or newly
+        rendered UI. It never reads field values, input values, or page text. Varkole then follows
+        Salesforce dependency metadata and shows only source available to this user; protected
+        managed-package internals remain hidden.
       </p>
     </div>
   );

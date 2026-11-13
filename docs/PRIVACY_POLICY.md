@@ -20,6 +20,9 @@ Varkole may handle the following data only to provide user-requested features:
 - Salesforce organization and user identity, object and field metadata, query results, records,
   accessible Apex and component source, debug logs, code coverage, limits, tabs, and permission
   information accessible to the user.
+- When the user activates Code Inspector's picker, the selected Salesforce component tag name or
+  Aura descriptor. The picker does not read field values, input values, labels, or rendered page
+  text.
 - SOQL query history saved by the user in the extension.
 - AI provider configuration, questions, recent conversation context, and relevant Salesforce data
   selected to answer an AI Agent question.
