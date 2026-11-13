@@ -64,25 +64,40 @@ const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
 export function readThemePreference(): ThemePreference {
   try {
-    const stored = JSON.parse(
-      localStorage.getItem(STORAGE_KEY) ?? 'null',
-    ) as Partial<ThemePreference>;
-    const validId = [...THEME_OPTIONS.map((option) => option.id), 'custom'].includes(
-      stored?.id as ThemeId,
-    );
-    return {
-      id: validId ? (stored.id as ThemeId) : DEFAULT_THEME.id,
-      customColor: HEX_COLOR.test(stored?.customColor ?? '')
-        ? stored.customColor!
-        : DEFAULT_THEME.customColor,
-    };
+    return normalizeThemePreference(localStorage.getItem(STORAGE_KEY));
   } catch {
     return DEFAULT_THEME;
   }
 }
 
-export function saveThemePreference(preference: ThemePreference): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(preference));
+export async function loadThemePreference(): Promise<ThemePreference> {
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      const stored = await chrome.storage.local.get(STORAGE_KEY);
+      if (stored[STORAGE_KEY] !== undefined) {
+        return normalizeThemePreference(stored[STORAGE_KEY]);
+      }
+    }
+  } catch {
+    // An embedded browser context can reject one storage mechanism. Use the safe fallback.
+  }
+  return readThemePreference();
+}
+
+export async function saveThemePreference(preference: ThemePreference): Promise<void> {
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      await chrome.storage.local.set({ [STORAGE_KEY]: preference });
+      return;
+    }
+  } catch {
+    // Keep the workspace usable even when extension storage is temporarily unavailable.
+  }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(preference));
+  } catch {
+    // Salesforce can block localStorage in an embedded frame. Theme persistence is optional.
+  }
 }
 
 export function applyThemePreference(preference: ThemePreference): void {
@@ -122,4 +137,26 @@ function hexToRgb(value: string): [number, number, number] {
     Number.parseInt(normalized.slice(2, 4), 16),
     Number.parseInt(normalized.slice(4, 6), 16),
   ];
+}
+
+function normalizeThemePreference(value: unknown): ThemePreference {
+  let stored = value;
+  if (typeof stored === 'string') {
+    try {
+      stored = JSON.parse(stored) as unknown;
+    } catch {
+      return DEFAULT_THEME;
+    }
+  }
+  const candidate =
+    stored && typeof stored === 'object' ? (stored as Partial<ThemePreference>) : undefined;
+  const validId = [...THEME_OPTIONS.map((option) => option.id), 'custom'].includes(
+    candidate?.id as ThemeId,
+  );
+  return {
+    id: validId ? (candidate?.id as ThemeId) : DEFAULT_THEME.id,
+    customColor: HEX_COLOR.test(candidate?.customColor ?? '')
+      ? candidate!.customColor!
+      : DEFAULT_THEME.customColor,
+  };
 }

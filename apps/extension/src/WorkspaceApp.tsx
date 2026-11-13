@@ -24,7 +24,8 @@ import { orgName } from './org';
 import { openWorkspace } from './api';
 import {
   applyThemePreference,
-  readThemePreference,
+  DEFAULT_THEME,
+  loadThemePreference,
   saveThemePreference,
   THEME_OPTIONS,
   type ThemePreference,
@@ -82,12 +83,25 @@ export function WorkspaceApp() {
   const { state, setState, error, loading } = useExtensionState();
   const [module, setModule] = useState(readHash());
   const [showConnect, setShowConnect] = useState(false);
-  const [theme, setTheme] = useState<ThemePreference>(readThemePreference);
+  const [theme, setTheme] = useState<ThemePreference>(DEFAULT_THEME);
+  const [themeReady, setThemeReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void loadThemePreference().then((preference) => {
+      if (!active) return;
+      setTheme(preference);
+      setThemeReady(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     applyThemePreference(theme);
-    saveThemePreference(theme);
-  }, [theme]);
+    if (themeReady) void saveThemePreference(theme);
+  }, [theme, themeReady]);
 
   useEffect(() => {
     const update = () => setModule(readHash());

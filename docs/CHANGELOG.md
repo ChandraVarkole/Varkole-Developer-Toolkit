@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.30 — Embedded workspace stability
+
+- Fixed the Salesforce drawer opening blank and preventing input after theme support was added.
+- Moved theme persistence to Chrome extension storage, which remains available when Salesforce
+  blocks page storage inside an embedded frame.
+- Guarded every persistence fallback so a browser storage restriction can never crash the
+  workspace; the default theme remains usable even when preferences cannot be saved.
+- Added regression coverage for unavailable browser storage.
+
 ## 0.7.29 — Exact SOQL objects and extension themes
 
 - Replaced the browser datalist in the SOQL object picker with an anchored, keyboard-accessible

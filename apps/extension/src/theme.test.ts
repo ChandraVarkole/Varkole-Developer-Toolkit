@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyThemePreference, DEFAULT_THEME, readThemePreference } from './theme';
+import {
+  applyThemePreference,
+  DEFAULT_THEME,
+  readThemePreference,
+  saveThemePreference,
+} from './theme';
 
 describe('theme preferences', () => {
   const stored = new Map<string, string>();
@@ -38,5 +43,18 @@ describe('theme preferences', () => {
     expect(document.documentElement.style.getPropertyValue('--sidebar-top')).toMatch(
       /^#[0-9a-f]{6}$/,
     );
+  });
+
+  it('never throws when browser storage is unavailable', async () => {
+    vi.stubGlobal('localStorage', {
+      getItem: () => {
+        throw new Error('blocked');
+      },
+      setItem: () => {
+        throw new Error('blocked');
+      },
+    });
+    await expect(saveThemePreference(DEFAULT_THEME)).resolves.toBeUndefined();
+    expect(readThemePreference()).toEqual(DEFAULT_THEME);
   });
 });
