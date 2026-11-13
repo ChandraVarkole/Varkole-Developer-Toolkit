@@ -522,6 +522,10 @@ function isComponentPickResultMessage(value: unknown): value is ComponentPickRes
     (component.tagName === undefined ||
       (typeof component.tagName === 'string' && component.tagName.length <= 240)) &&
     (component.descriptor === undefined ||
-      (typeof component.descriptor === 'string' && component.descriptor.length <= 240))
+      (typeof component.descriptor === 'string' && component.descriptor.length <= 240)) &&
+    (component.metadataType === undefined || component.metadataType === 'QuickAction') &&
+    (component.metadataName === undefined ||
+      (typeof component.metadataName === 'string' &&
+        /^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)?$/.test(component.metadataName)))
   );
 }

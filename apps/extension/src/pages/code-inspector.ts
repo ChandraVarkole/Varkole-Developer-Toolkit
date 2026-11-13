@@ -224,6 +224,14 @@ export function customTabDependencyQuery(tabName: string): string {
   return `SELECT MetadataComponentId, MetadataComponentName, MetadataComponentType, RefMetadataComponentId, RefMetadataComponentName, RefMetadataComponentType FROM MetadataComponentDependency WHERE MetadataComponentType = 'CustomTab' AND MetadataComponentName = '${safeName(tabName)}' LIMIT 100`;
 }
 
+export function quickActionDependencyQuery(actionName: string): string {
+  if (!/^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)?$/.test(actionName)) {
+    throw new Error('Salesforce returned an invalid quick action name.');
+  }
+  const candidates = [...new Set([actionName, actionName.split('.').at(-1)!])];
+  return `SELECT MetadataComponentId, MetadataComponentName, MetadataComponentType, RefMetadataComponentId, RefMetadataComponentName, RefMetadataComponentType FROM MetadataComponentDependency WHERE MetadataComponentType = 'QuickAction' AND MetadataComponentName IN (${candidates.map((name) => `'${name}'`).join(', ')}) LIMIT 100`;
+}
+
 export function overrideResourceQuery(pageId: string): Array<{
   kind: CodeResourceKind;
   query: string;

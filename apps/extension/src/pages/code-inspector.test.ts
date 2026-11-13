@@ -9,6 +9,7 @@ import {
   pageContextFromSalesforceUrl,
   pickedComponentQueries,
   recordTriggerQuery,
+  quickActionDependencyQuery,
   sourceQuery,
   type CodeResource,
 } from './code-inspector';
@@ -79,6 +80,12 @@ describe('Code Inspector context helpers', () => {
       pickedComponentQueries({ componentName: 'localAction', kindHint: 'aura', namespace: 'c' })[0]
         ?.query,
     ).toContain("DeveloperName = 'localAction' AND NamespacePrefix = null");
+  });
+
+  it('resolves a selected quick action through Salesforce dependency metadata', () => {
+    const query = quickActionDependencyQuery('Account.Create_Address');
+    expect(query).toContain("MetadataComponentType = 'QuickAction'");
+    expect(query).toContain("'Account.Create_Address', 'Create_Address'");
   });
 
   it('keeps only supported UI and Apex dependencies', () => {

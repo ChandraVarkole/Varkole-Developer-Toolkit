@@ -2,6 +2,7 @@ import { recordIdFromSalesforceUrl } from './record-context';
 import {
   componentHintFromComposedPath,
   componentHintFromElement,
+  quickActionHintFromComposedPath,
   type ComponentPickResultMessage,
   type PickedComponentContext,
 } from './component-picker';
@@ -160,6 +161,12 @@ function setOpen(open: boolean) {
 
 function startComponentPicker() {
   componentPickerCleanup?.();
+  const baselineComponents = new WeakSet<Element>();
+  visitElementsDeep(document.documentElement, 12_000, (element) => {
+    if (componentHintFromElement(element) && isVisibleElement(element)) {
+      baselineComponents.add(element);
+    }
+  });
 
   const outline = document.createElement('div');
   outline.id = 'varkole-component-picker-outline';
@@ -196,10 +203,12 @@ function startComponentPicker() {
 
   let observer: MutationObserver | undefined;
   let timeout: number | undefined;
+  let scanInterval: number | undefined;
 
   const finish = (result?: ComponentPickResultMessage) => {
     observer?.disconnect();
     if (timeout !== undefined) window.clearTimeout(timeout);
+    if (scanInterval !== undefined) window.clearInterval(scanInterval);
     document.removeEventListener('pointermove', handlePointerMove, true);
     document.removeEventListener('click', handleClick, true);
     document.removeEventListener('keydown', handleKeydown, true);
@@ -209,29 +218,37 @@ function startComponentPicker() {
     if (result) sendComponentPickResult(result);
   };
 
-  const waitForRenderedComponent = () => {
+  const waitForRenderedComponent = (fallback?: PickedComponentContext) => {
     instruction.textContent = 'Varkole: waiting for the selected component to render…';
     observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
           if (!(node instanceof Element)) continue;
-          const component = findComponentInAddedTree(node);
-          if (component) {
-            finish({ type: 'VARKOLE_COMPONENT_PICK_RESULT', status: 'found', component });
-            return;
-          }
+          observeOpenShadowRoots(node, observer!);
         }
       }
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
+    observeOpenShadowRoots(document.documentElement, observer);
+    const scan = () => {
+      const component = findNewVisibleComponent(document.documentElement, baselineComponents);
+      if (component) {
+        finish({ type: 'VARKOLE_COMPONENT_PICK_RESULT', status: 'found', component });
+      }
+    };
+    scanInterval = window.setInterval(scan, 120);
     timeout = window.setTimeout(() => {
-      finish({
-        type: 'VARKOLE_COMPONENT_PICK_RESULT',
-        status: 'not-found',
-        message:
-          'No custom LWC or Aura component marker appeared. This may be a standard Salesforce action, Flow, or protected managed component.',
-      });
-    }, 3_500);
+      if (fallback) {
+        finish({ type: 'VARKOLE_COMPONENT_PICK_RESULT', status: 'found', component: fallback });
+      } else {
+        finish({
+          type: 'VARKOLE_COMPONENT_PICK_RESULT',
+          status: 'not-found',
+          message:
+            'No custom LWC or Aura component marker appeared. This may be a standard Salesforce action, Flow, or protected managed component.',
+        });
+      }
+    }, 6_000);
   };
 
   function handlePointerMove(event: PointerEvent) {
@@ -254,6 +271,11 @@ function startComponentPicker() {
     document.removeEventListener('pointermove', handlePointerMove, true);
     document.removeEventListener('click', handleClick, true);
     outline.style.display = 'none';
+    const quickAction = quickActionHintFromComposedPath(event.composedPath());
+    if (quickAction) {
+      waitForRenderedComponent(quickAction);
+      return;
+    }
     const component = componentHintFromComposedPath(event.composedPath());
     if (component) {
       finish({ type: 'VARKOLE_COMPONENT_PICK_RESULT', status: 'found', component });
@@ -281,18 +303,64 @@ function startComponentPicker() {
   componentPickerCleanup = () => finish();
 }
 
-function findComponentInAddedTree(root: Element): PickedComponentContext | undefined {
-  const direct = componentHintFromElement(root);
-  if (direct) return direct;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+function findNewVisibleComponent(
+  root: Element,
+  baseline: WeakSet<Element>,
+): PickedComponentContext | undefined {
+  let best:
+    | { component: PickedComponentContext; confidence: number; visibleArea: number }
+    | undefined;
+  visitElementsDeep(root, 16_000, (element) => {
+    if (baseline.has(element) || !isVisibleElement(element)) return;
+    const component = componentHintFromElement(element);
+    if (!component) return;
+    const rectangle = element.getBoundingClientRect();
+    const confidence = component.namespace?.toLowerCase() === 'c' ? 2 : 1;
+    const visibleArea =
+      Math.min(rectangle.width, window.innerWidth) * Math.min(rectangle.height, window.innerHeight);
+    if (
+      !best ||
+      confidence > best.confidence ||
+      (confidence === best.confidence && visibleArea > best.visibleArea)
+    ) {
+      best = { component, confidence, visibleArea };
+    }
+  });
+  return best?.component;
+}
+
+function visitElementsDeep(root: ParentNode, maximum: number, visit: (element: Element) => void) {
+  const stack: Element[] = root instanceof Element ? [root] : Array.from(root.children);
   let inspected = 0;
-  while (walker.nextNode() && inspected < 800) {
+  while (stack.length && inspected < maximum) {
+    const element = stack.pop()!;
     inspected += 1;
-    if (!(walker.currentNode instanceof Element)) continue;
-    const hint = componentHintFromElement(walker.currentNode);
-    if (hint) return hint;
+    visit(element);
+    const shadowChildren = element.shadowRoot ? Array.from(element.shadowRoot.children) : [];
+    const children = [...Array.from(element.children), ...shadowChildren];
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push(children[index]!);
+    }
   }
-  return undefined;
+}
+
+function observeOpenShadowRoots(root: Element, observer: MutationObserver) {
+  visitElementsDeep(root, 4_000, (element) => {
+    if (!element.shadowRoot) return;
+    observer.observe(element.shadowRoot, { childList: true, subtree: true });
+  });
+}
+
+function isVisibleElement(element: Element): boolean {
+  const rectangle = element.getBoundingClientRect();
+  return (
+    rectangle.width > 2 &&
+    rectangle.height > 2 &&
+    rectangle.bottom > 0 &&
+    rectangle.right > 0 &&
+    rectangle.top < window.innerHeight &&
+    rectangle.left < window.innerWidth
+  );
 }
 
 function sendComponentPickResult(result: ComponentPickResultMessage) {

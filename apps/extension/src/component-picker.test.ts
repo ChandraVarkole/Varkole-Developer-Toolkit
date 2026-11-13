@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { componentHintFromMetadata, isComponentPickResultMessage } from './component-picker';
+import {
+  componentHintFromMetadata,
+  isComponentPickResultMessage,
+  quickActionHintFromSelectionName,
+} from './component-picker';
 
 describe('Salesforce component picker', () => {
   it('identifies a custom LWC without reading rendered page content', () => {
@@ -31,6 +35,20 @@ describe('Salesforce component picker', () => {
     expect(componentHintFromMetadata({ tagName: 'LIGHTNING-BUTTON' })).toBeUndefined();
     expect(componentHintFromMetadata({ tagName: 'RECORDS-RECORD-LAYOUT-BLOCK' })).toBeUndefined();
     expect(componentHintFromMetadata({ auraClass: 'force:recordData' })).toBeUndefined();
+    expect(
+      componentHintFromMetadata({
+        tagName: 'runtime_platform_actions-executor-lightning-component',
+      }),
+    ).toBeUndefined();
+  });
+
+  it('captures a quick-action API identity as a metadata fallback', () => {
+    expect(quickActionHintFromSelectionName('sfdc:QuickAction.Account.Create_Address')).toEqual({
+      componentName: 'Create_Address',
+      kindHint: 'unknown',
+      metadataType: 'QuickAction',
+      metadataName: 'Account.Create_Address',
+    });
   });
 
   it('validates component results received from the Salesforce parent page', () => {

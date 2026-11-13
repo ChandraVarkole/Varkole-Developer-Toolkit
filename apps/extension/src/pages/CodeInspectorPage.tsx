@@ -16,6 +16,7 @@ import {
   overrideResourceQuery,
   pageContextFromSalesforceUrl,
   pickedComponentQueries,
+  quickActionDependencyQuery,
   recordTriggerQuery,
   sortContextResources,
   sourceQuery,
@@ -71,10 +72,27 @@ export function CodeInspectorPage({
     try {
       const roots: CodeResource[] = [];
       if (pickedComponent) {
-        roots.push(...(await runDefinitions(org, pickedComponentQueries(pickedComponent))));
+        if (pickedComponent.metadataType === 'QuickAction' && pickedComponent.metadataName) {
+          try {
+            const actionDependencies = await runToolingQuery(
+              org,
+              quickActionDependencyQuery(pickedComponent.metadataName),
+            );
+            roots.push(
+              ...codeResourcesFromDependencies(actionDependencies.records, 'Selected component'),
+            );
+          } catch {
+            // Exact bundle lookup below remains available when dependency metadata is restricted.
+          }
+        }
+        if (!roots.length) {
+          roots.push(...(await runDefinitions(org, pickedComponentQueries(pickedComponent))));
+        }
         if (!roots.length) {
           setContextNote(
-            `Salesforce rendered ${pickedComponent.componentName}, but its bundle metadata is not readable in this session. It may be a protected managed component.`,
+            pickedComponent.metadataType === 'QuickAction'
+              ? `Salesforce identified ${pickedComponent.metadataName}, but did not expose its backing component through dependency metadata or an exact bundle lookup.`
+              : `Salesforce rendered ${pickedComponent.componentName}, but its bundle metadata is not readable in this session.`,
           );
         }
       } else {
@@ -340,7 +358,7 @@ export function CodeInspectorPage({
         </strong>
         <small>
           {pickedComponent
-            ? `${pickedComponent.kindHint.toUpperCase()}${pickedComponent.namespace ? ` · ${pickedComponent.namespace}` : ''}`
+            ? `${pickedComponent.metadataType ?? pickedComponent.kindHint.toUpperCase()}${pickedComponent.namespace ? ` · ${pickedComponent.namespace}` : ''}`
             : currentRecordId
               ? `Record ${currentRecordId}`
               : (pageContext?.pathname ?? 'Open the embedded extension from Salesforce')}

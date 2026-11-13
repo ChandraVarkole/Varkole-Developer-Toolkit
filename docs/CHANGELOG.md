@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.26 — Quick action and lazy LWC targeting
+
+- Fixed Code Inspector selecting Salesforce's internal
+  `runtime_platform_actions:executorLightningComponent` wrapper instead of the custom component
+  opened by a quick action.
+- Added bounded discovery of newly visible custom components across the page DOM and accessible open
+  shadow roots, allowing lazy tab and modal content to resolve after the Salesforce click finishes.
+- Added Quick Action API-name capture and Salesforce dependency-metadata lookup as a fallback when a
+  runtime wrapper does not expose its rendered child directly.
+- Increased regression coverage for Salesforce runtime-wrapper rejection, Quick Action identity
+  validation, and exact Quick Action dependency queries.
+
 ## 0.7.25 — Click-target code inspection
 
 - Added an explicit Pick component mode that lets the user click a Salesforce quick action, tab,

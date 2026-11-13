@@ -6,6 +6,8 @@ export interface PickedComponentContext {
   namespace?: string;
   tagName?: string;
   descriptor?: string;
+  metadataType?: 'QuickAction';
+  metadataName?: string;
 }
 
 export type ComponentPickResult =
@@ -46,6 +48,7 @@ const SALESFORCE_NAMESPACES = new Set([
 
 const COMPONENT_NAME = /^[A-Za-z][A-Za-z0-9_]{0,159}$/;
 const COMPONENT_NAMESPACE = /^[A-Za-z][A-Za-z0-9_]{0,79}$/;
+const QUICK_ACTION_NAME = /^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)?$/;
 
 /**
  * Converts component identity markers into a Salesforce metadata lookup hint.
@@ -66,7 +69,7 @@ export function componentHintFromMetadata(
   if (
     !namespace ||
     !localName ||
-    SALESFORCE_NAMESPACES.has(namespace) ||
+    isSalesforceNamespace(namespace) ||
     !COMPONENT_NAMESPACE.test(namespace)
   ) {
     return undefined;
@@ -78,6 +81,34 @@ export function componentHintFromMetadata(
     kindHint: 'lwc',
     namespace,
     tagName,
+  };
+}
+
+export function quickActionHintFromComposedPath(
+  path: EventTarget[],
+): PickedComponentContext | undefined {
+  for (const target of path) {
+    if (!(target instanceof Element)) continue;
+    const hint = quickActionHintFromSelectionName(
+      target.getAttribute('data-target-selection-name') ?? undefined,
+    );
+    if (hint) return hint;
+  }
+  return undefined;
+}
+
+export function quickActionHintFromSelectionName(
+  selectionName?: string,
+): PickedComponentContext | undefined {
+  const actionName = selectionName
+    ?.trim()
+    .match(/^sfdc:QuickAction\.([A-Za-z][A-Za-z0-9_.]*)$/)?.[1];
+  if (!actionName || !QUICK_ACTION_NAME.test(actionName)) return undefined;
+  return {
+    componentName: actionName.split('.').at(-1)!,
+    kindHint: 'unknown',
+    metadataType: 'QuickAction',
+    metadataName: actionName,
   };
 }
 
@@ -126,7 +157,11 @@ export function isComponentPickResultMessage(value: unknown): value is Component
     (component.tagName === undefined ||
       (typeof component.tagName === 'string' && component.tagName.length <= 240)) &&
     (component.descriptor === undefined ||
-      (typeof component.descriptor === 'string' && component.descriptor.length <= 240))
+      (typeof component.descriptor === 'string' && component.descriptor.length <= 240)) &&
+    (component.metadataType === undefined || component.metadataType === 'QuickAction') &&
+    (component.metadataName === undefined ||
+      (typeof component.metadataName === 'string' &&
+        QUICK_ACTION_NAME.test(component.metadataName)))
   );
 }
 
@@ -137,13 +172,23 @@ function parseAuraDescriptor(value?: string): PickedComponentContext | undefined
   if (!match) return undefined;
   const namespace = match[1]!;
   const componentName = match[2]!;
-  if (SALESFORCE_NAMESPACES.has(namespace.toLowerCase())) return undefined;
+  if (isSalesforceNamespace(namespace.toLowerCase())) return undefined;
   return {
     componentName,
     kindHint: 'aura',
     namespace,
     descriptor,
   };
+}
+
+function isSalesforceNamespace(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return (
+    SALESFORCE_NAMESPACES.has(normalized) ||
+    /^(?:runtime_|force(?:_|$)|lightning(?:_|$)|records(?:_|$)|flexipage(?:_|$)|aura(?:_|$)|ui(?:_|$)|one(?:_|$)|navex(?:_|$)|instrumentation(?:_|$))/.test(
+      normalized,
+    )
+  );
 }
 
 function kebabToDeveloperName(value: string): string {
