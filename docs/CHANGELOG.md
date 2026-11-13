@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.23 — Custom navigation tab inspection
+
+- Added Custom Tab metadata resolution for Lightning navigation routes such as
+  `/lightning/n/SocioWatch_Settings`.
+- Code Inspector now follows a custom tab to its backing LWC, Aura component, Visualforce page, or
+  FlexiPage and then retrieves its accessible dependency-linked Apex and UI source.
+- Added a permission-safe exact-name component fallback when Custom Tab metadata is unavailable to
+  the current user.
+
 ## 0.7.22 — Current-page code inspection
 
 - Replaced the org-wide Code Inspector inventory with a current-context view that starts from the

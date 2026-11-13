@@ -2,7 +2,7 @@
 
 ## Current recommendation
 
-Version 0.7.22 is correctly labeled as a beta and its package is structurally ready for Chrome Web
+Version 0.7.23 is correctly labeled as a beta and its package is structurally ready for Chrome Web
 Store upload. It is not yet ready to submit for public review until the owner-controlled blockers
 below are completed.
 
@@ -32,7 +32,7 @@ below are completed.
 ## Suggested rollout
 
 1. Address the owner-controlled blockers and re-run `npm run verify`.
-2. Upload the existing v0.7.22 ZIP unless source code changes are made. If source changes, increase
+2. Upload the existing v0.7.23 ZIP unless source code changes are made. If source changes, increase
    the manifest version and build a fresh ZIP.
 3. Select Public visibility with deferred publishing if the goal is a publicly listed beta; select
    Private first if another trusted-tester review cycle is desired.

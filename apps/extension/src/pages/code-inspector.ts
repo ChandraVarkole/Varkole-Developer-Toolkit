@@ -1,4 +1,5 @@
 import type {
+  CustomTabMetadata,
   QueryRecord,
   SalesforceActionOverride,
   SalesforceObjectDescribe,
@@ -38,6 +39,7 @@ export interface SalesforcePageContext {
   visualforceName?: string;
   componentName?: string;
   sourceId?: string;
+  navigationTabName?: string;
 }
 
 const SOURCE_ID_KINDS: Record<string, CodeResourceKind> = {
@@ -74,6 +76,7 @@ export function pageContextFromSalesforceUrl(value?: string): SalesforcePageCont
   const componentRoute = route.match(
     /\/lightning\/cmp\/(?:[A-Za-z][A-Za-z0-9]*__)?([A-Za-z][A-Za-z0-9_]*)/i,
   )?.[1];
+  const navigationTabName = route.match(/\/lightning\/n\/([A-Za-z][A-Za-z0-9_]*)/i)?.[1];
   const sourceId = route
     .split(/[^A-Za-z0-9]+/)
     .find(
@@ -88,7 +91,49 @@ export function pageContextFromSalesforceUrl(value?: string): SalesforcePageCont
     ...(visualforceName ? { visualforceName } : {}),
     ...(componentRoute ? { componentName: componentRoute } : {}),
     ...(sourceId ? { sourceId } : {}),
+    ...(navigationTabName ? { navigationTabName } : {}),
   };
+}
+
+export function customTabTargetQueries(tab: CustomTabMetadata): Array<{
+  kind: CodeResourceKind;
+  query: string;
+}> {
+  if (tab.lwcComponent) {
+    const name = componentDeveloperName(tab.lwcComponent);
+    return [
+      {
+        kind: 'LWC',
+        query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM LightningComponentBundle WHERE DeveloperName = '${safeName(name)}' AND ManageableState = 'unmanaged' LIMIT 1`,
+      },
+    ];
+  }
+  if (tab.auraComponent) {
+    const name = componentDeveloperName(tab.auraComponent);
+    return [
+      {
+        kind: 'Aura',
+        query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM AuraDefinitionBundle WHERE DeveloperName = '${safeName(name)}' AND ManageableState = 'unmanaged' LIMIT 1`,
+      },
+    ];
+  }
+  if (tab.flexiPage) {
+    return [
+      {
+        kind: 'Lightning page',
+        query: `SELECT Id, DeveloperName, MasterLabel, NamespacePrefix, Type, SobjectType FROM FlexiPage WHERE DeveloperName = '${safeName(componentDeveloperName(tab.flexiPage))}' LIMIT 1`,
+      },
+    ];
+  }
+  if (tab.page) {
+    return [
+      {
+        kind: 'Visualforce page',
+        query: `SELECT Id, Name, NamespacePrefix, ApiVersion FROM ApexPage WHERE Name = '${safeName(componentDeveloperName(tab.page))}' AND ManageableState = 'unmanaged' LIMIT 1`,
+      },
+    ];
+  }
+  return [];
 }
 
 export function activeRecordPageOverride(
@@ -319,6 +364,11 @@ function safeName(value: string): string {
     throw new Error('Salesforce returned an invalid metadata name.');
   }
   return value;
+}
+
+function componentDeveloperName(value: string): string {
+  const normalized = value.trim().split(':').at(-1)?.split('__').at(-1) ?? '';
+  return normalized;
 }
 
 function text(value: unknown): string {

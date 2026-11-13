@@ -48,6 +48,17 @@ export interface MetadataFileProperty {
   lastModifiedDate?: string;
 }
 
+export interface CustomTabMetadata {
+  fullName: string;
+  label?: string;
+  auraComponent?: string;
+  lwcComponent?: string;
+  flexiPage?: string;
+  page?: string;
+  customObject?: boolean;
+  url?: string;
+}
+
 export interface SalesforceObjectSummary {
   name: string;
   label: string;
@@ -214,6 +225,7 @@ export type UiRequest =
   | { type: 'DESCRIBE_OBJECT'; payload: { key: string; objectApiName: string } }
   | { type: 'GET_TABS'; payload: { key: string } }
   | { type: 'GET_EXTERNAL_CLIENT_APPS'; payload: { key: string; requestId: string } }
+  | { type: 'GET_CUSTOM_TAB'; payload: { key: string; tabName: string } }
   | { type: 'GET_APEX_LOG_BODY'; payload: { key: string; logId: string } }
   | { type: 'GET_REPORT_RESULT'; payload: { key: string; reportId: string } }
   | { type: 'GET_DASHBOARD_RESULT'; payload: { key: string; dashboardId: string } }

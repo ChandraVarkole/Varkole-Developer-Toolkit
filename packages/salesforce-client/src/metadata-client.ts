@@ -1,4 +1,4 @@
-import type { MetadataFileProperty } from '@varkole/shared';
+import type { CustomTabMetadata, MetadataFileProperty } from '@varkole/shared';
 import type { SalesforceTransport } from './transport';
 
 export class SalesforceMetadataClient {
@@ -19,6 +19,42 @@ export class SalesforceMetadataClient {
     );
     return parseMetadataFileProperties(result.data);
   }
+
+  async readCustomTab(fullName: string, signal?: AbortSignal): Promise<CustomTabMetadata> {
+    if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(fullName)) {
+      throw new Error('Salesforce returned an invalid custom tab name.');
+    }
+    const result = await this.transport.postMetadataSoap(
+      `/services/Soap/m/${this.apiVersion}`,
+      'readMetadata',
+      `<met:readMetadata><met:type>CustomTab</met:type><met:fullNames>${escapeXml(fullName)}</met:fullNames></met:readMetadata>`,
+      signal,
+    );
+    return parseCustomTabMetadata(result.data, fullName);
+  }
+}
+
+export function parseCustomTabMetadata(xml: string, requestedName: string): CustomTabMetadata {
+  const record = xml.match(/<(?:\w+:)?records(?:\s[^>]*)?>([\s\S]*?)<\/(?:\w+:)?records>/i)?.[1];
+  if (!record) throw new Error(`Salesforce did not return metadata for tab ${requestedName}.`);
+  const fullName = readTag(record, 'fullName') ?? requestedName;
+  const label = readTag(record, 'label');
+  const auraComponent = readTag(record, 'auraComponent');
+  const lwcComponent = readTag(record, 'lwcComponent');
+  const flexiPage = readTag(record, 'flexiPage');
+  const page = readTag(record, 'page');
+  const customObject = readTag(record, 'customObject');
+  const url = readTag(record, 'url');
+  return {
+    fullName,
+    ...(label ? { label } : {}),
+    ...(auraComponent ? { auraComponent } : {}),
+    ...(lwcComponent ? { lwcComponent } : {}),
+    ...(flexiPage ? { flexiPage } : {}),
+    ...(page ? { page } : {}),
+    ...(customObject ? { customObject: customObject.toLowerCase() === 'true' } : {}),
+    ...(url ? { url } : {}),
+  };
 }
 
 export function parseMetadataFileProperties(xml: string): MetadataFileProperty[] {

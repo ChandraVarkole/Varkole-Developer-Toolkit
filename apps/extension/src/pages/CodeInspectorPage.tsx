@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { OrgIdentity, QueryPage, RecordInspection } from '@varkole/shared';
+import type { CustomTabMetadata, OrgIdentity, QueryPage, RecordInspection } from '@varkole/shared';
 import { sendMessage } from '../api';
 import { CopyButton } from '../components/CopyButton';
 import { EmptyState, InlineError } from '../components/Status';
@@ -8,6 +8,7 @@ import {
   codeFilesFromRecords,
   codeResourceFromRecord,
   codeResourcesFromDependencies,
+  customTabTargetQueries,
   dependencyQuery,
   directContextQueries,
   overrideResourceQuery,
@@ -40,6 +41,7 @@ export function CodeInspectorPage({
   const [files, setFiles] = useState<CodeFile[]>([]);
   const [filter, setFilter] = useState('');
   const [currentObject, setCurrentObject] = useState<string>();
+  const [currentTabLabel, setCurrentTabLabel] = useState<string>();
   const [loading, setLoading] = useState(false);
   const [loadingSource, setLoadingSource] = useState(false);
   const [error, setError] = useState<string>();
@@ -53,9 +55,47 @@ export function CodeInspectorPage({
     setError(undefined);
     setContextNote(undefined);
     setCurrentObject(undefined);
+    setCurrentTabLabel(undefined);
     try {
       const roots: CodeResource[] = [];
       roots.push(...(await runDefinitions(org, directContextQueries(pageContext))));
+
+      if (pageContext?.navigationTabName) {
+        try {
+          const tab = await sendMessage<CustomTabMetadata>({
+            type: 'GET_CUSTOM_TAB',
+            payload: { key: org.key, tabName: pageContext.navigationTabName },
+          });
+          setCurrentTabLabel(tab.label ?? tab.fullName);
+          let targets = customTabTargetQueries(tab);
+          if (!targets.length && tab.url) {
+            targets = directContextQueries(
+              pageContextFromSalesforceUrl(new URL(tab.url, org.instanceUrl).href),
+            );
+          }
+          roots.push(...(await runDefinitions(org, targets)));
+          if (!targets.length) {
+            setContextNote(
+              tab.customObject
+                ? 'This navigation item opens a custom object tab rather than a custom UI component.'
+                : 'Salesforce returned this custom tab but did not expose a supported component target.',
+            );
+          }
+        } catch {
+          setCurrentTabLabel(pageContext.navigationTabName);
+          roots.push(
+            ...(await runDefinitions(org, [
+              ...directContextQueries({
+                ...pageContext,
+                componentName: pageContext.navigationTabName,
+              }),
+            ])),
+          );
+          setContextNote(
+            'The Custom Tab metadata was not readable, so Varkole tried an exact same-name component lookup.',
+          );
+        }
+      }
 
       if (currentRecordId) {
         const inspection = await sendMessage<RecordInspection>({
@@ -213,6 +253,7 @@ export function CodeInspectorPage({
         <span>{pageContext?.experience ?? 'Salesforce'} context</span>
         <strong>
           {currentObject ??
+            currentTabLabel ??
             pageContext?.visualforceName ??
             pageContext?.componentName ??
             'Current page'}

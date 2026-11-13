@@ -3,6 +3,7 @@ import {
   activeRecordPageOverride,
   codeFilesFromRecords,
   codeResourcesFromDependencies,
+  customTabTargetQueries,
   directContextQueries,
   pageContextFromSalesforceUrl,
   recordTriggerQuery,
@@ -19,6 +20,23 @@ describe('Code Inspector context helpers', () => {
     const [query] = directContextQueries(context);
     expect(query?.kind).toBe('Visualforce page');
     expect(query?.query).toContain("Name = 'InvoiceConsole'");
+  });
+
+  it('resolves a Lightning navigation item through its Custom Tab target', () => {
+    const context = pageContextFromSalesforceUrl(
+      'https://acme.lightning.force.com/lightning/n/SocioWatch_Settings',
+    );
+    expect(context).toMatchObject({
+      experience: 'Lightning',
+      navigationTabName: 'SocioWatch_Settings',
+    });
+    const [query] = customTabTargetQueries({
+      fullName: 'SocioWatch_Settings',
+      label: 'SocioWatch Settings',
+      auraComponent: 'c:socioWatchSettings',
+    });
+    expect(query?.kind).toBe('Aura');
+    expect(query?.query).toContain("DeveloperName = 'socioWatchSettings'");
   });
 
   it('uses the current-user record page override and the current object triggers', () => {

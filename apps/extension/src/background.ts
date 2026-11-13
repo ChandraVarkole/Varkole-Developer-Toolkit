@@ -149,6 +149,10 @@ async function handleRequest(request: UiRequest): Promise<unknown> {
           client.listExternalClientApplications(signal),
         ),
       );
+    case 'GET_CUSTOM_TAB':
+      return withMetadataClient(request.payload.key, (client) =>
+        client.readCustomTab(request.payload.tabName),
+      );
     case 'GET_APEX_LOG_BODY':
       return withToolingClient(request.payload.key, (client) =>
         client.getApexLogBody(request.payload.logId),
