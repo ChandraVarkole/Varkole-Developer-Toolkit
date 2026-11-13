@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Varkole Developer Toolkit BETA",
   "short_name": "Varkole BETA",
-  "version": "0.7.26",
+  "version": "0.7.27",
   "description": "THIS EXTENSION IS FOR BETA TESTING. Salesforce developer utilities using your current signed-in browser session.",
   "minimum_chrome_version": "114",
   "action": {

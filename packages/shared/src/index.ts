@@ -59,6 +59,15 @@ export interface CustomTabMetadata {
   url?: string;
 }
 
+export interface QuickActionMetadata {
+  fullName: string;
+  label?: string;
+  type?: string;
+  flowDefinition?: string;
+  lightningComponent?: string;
+  visualforcePage?: string;
+}
+
 export interface SalesforceObjectSummary {
   name: string;
   label: string;
@@ -226,6 +235,7 @@ export type UiRequest =
   | { type: 'GET_TABS'; payload: { key: string } }
   | { type: 'GET_EXTERNAL_CLIENT_APPS'; payload: { key: string; requestId: string } }
   | { type: 'GET_CUSTOM_TAB'; payload: { key: string; tabName: string } }
+  | { type: 'GET_QUICK_ACTION'; payload: { key: string; actionName: string } }
   | { type: 'GET_APEX_LOG_BODY'; payload: { key: string; logId: string } }
   | { type: 'GET_REPORT_RESULT'; payload: { key: string; reportId: string } }
   | { type: 'GET_DASHBOARD_RESULT'; payload: { key: string; dashboardId: string } }

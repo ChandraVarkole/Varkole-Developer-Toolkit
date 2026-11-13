@@ -1,6 +1,7 @@
 import type {
   CustomTabMetadata,
   QueryRecord,
+  QuickActionMetadata,
   SalesforceActionOverride,
   SalesforceObjectDescribe,
 } from '@varkole/shared';
@@ -13,7 +14,8 @@ export type CodeResourceKind =
   | 'LWC'
   | 'Aura'
   | 'Visualforce page'
-  | 'Visualforce component';
+  | 'Visualforce component'
+  | 'Flow';
 
 export type CodeRelationship =
   | 'Selected component'
@@ -65,6 +67,7 @@ const METADATA_TYPE_KINDS: Record<string, CodeResourceKind> = {
   LightningComponentBundle: 'LWC',
   AuraDefinitionBundle: 'Aura',
   FlexiPage: 'Lightning page',
+  Flow: 'Flow',
 };
 
 export function pageContextFromSalesforceUrl(value?: string): SalesforcePageContext | undefined {
@@ -139,6 +142,93 @@ export function customTabTargetQueries(tab: CustomTabMetadata): Array<{
     ];
   }
   return [];
+}
+
+export function quickActionTargetQueries(action: QuickActionMetadata): Array<{
+  kind: CodeResourceKind;
+  query: string;
+  relationship?: CodeRelationship;
+}> {
+  if (action.flowDefinition) return flowTargetQueries(action.flowDefinition);
+  if (action.lightningComponent) {
+    const name = safeName(componentDeveloperName(action.lightningComponent));
+    return [
+      {
+        kind: 'LWC',
+        query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM LightningComponentBundle WHERE DeveloperName = '${name}' LIMIT 25`,
+        relationship: 'Selected component',
+      },
+      {
+        kind: 'Aura',
+        query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM AuraDefinitionBundle WHERE DeveloperName = '${name}' LIMIT 25`,
+        relationship: 'Selected component',
+      },
+    ];
+  }
+  if (action.visualforcePage) {
+    const name = safeName(componentDeveloperName(action.visualforcePage));
+    return [
+      {
+        kind: 'Visualforce page',
+        query: `SELECT Id, Name, NamespacePrefix, ApiVersion FROM ApexPage WHERE Name = '${name}' LIMIT 25`,
+        relationship: 'Selected component',
+      },
+    ];
+  }
+  return [];
+}
+
+export function flowTargetQueries(flowName: string): Array<{
+  kind: CodeResourceKind;
+  query: string;
+  relationship: CodeRelationship;
+}> {
+  const name = safeName(componentDeveloperName(flowName));
+  return [
+    {
+      kind: 'Flow',
+      query: `SELECT Id, DeveloperName, MasterLabel, NamespacePrefix, ActiveVersionId, LatestVersionId, ManageableState FROM FlowDefinition WHERE DeveloperName = '${name}' LIMIT 1`,
+      relationship: 'Selected component',
+    },
+  ];
+}
+
+export function flowComponentQueriesFromRecords(records: QueryRecord[]): Array<{
+  kind: CodeResourceKind;
+  query: string;
+  relationship: CodeRelationship;
+}> {
+  const references = new Set<string>();
+  let inspected = 0;
+  const visit = (value: unknown) => {
+    if (inspected >= 5_000 || value === null || value === undefined) return;
+    inspected += 1;
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+      return;
+    }
+    if (typeof value !== 'object') return;
+    for (const [key, nested] of Object.entries(value)) {
+      if (key === 'extensionName' && typeof nested === 'string') references.add(nested.trim());
+      visit(nested);
+    }
+  };
+  for (const record of records) visit(record.Metadata);
+
+  const definitions = [...references].flatMap((reference) => {
+    const match = reference.match(/^([A-Za-z][A-Za-z0-9_]*)(?::|__)([A-Za-z][A-Za-z0-9_]*)$/);
+    if (!match) return [];
+    const namespace = match[1]!;
+    if (/^(?:c|aura|flowruntime|force|lightning|runtime)$/i.test(namespace)) {
+      if (namespace.toLowerCase() !== 'c') return [];
+    }
+    return pickedComponentQueries({
+      componentName: match[2]!,
+      kindHint: 'unknown',
+      namespace,
+    }).map((definition) => ({ ...definition, relationship: 'Related component' as const }));
+  });
+  return [...new Map(definitions.map((definition) => [definition.query, definition])).values()];
 }
 
 export function activeRecordPageOverride(
@@ -256,7 +346,10 @@ export function codeResourceFromRecord(
   record: QueryRecord,
   relationship: CodeRelationship = 'Current page',
 ): CodeResource | undefined {
-  const id = text(record.Id);
+  const id =
+    kind === 'Flow'
+      ? text(record.ActiveVersionId) || text(record.LatestVersionId) || text(record.Id)
+      : text(record.Id);
   const name = text(record.Name) || text(record.DeveloperName) || text(record.MasterLabel);
   const apiVersion = scalar(record.ApiVersion);
   if (!id || !name) return undefined;
@@ -316,6 +409,8 @@ export function sourceQuery(resource: CodeResource): string {
       return `SELECT Id, Name, Markup FROM ApexPage WHERE Id = '${id}' LIMIT 1`;
     case 'Visualforce component':
       return `SELECT Id, Name, Markup FROM ApexComponent WHERE Id = '${id}' LIMIT 1`;
+    case 'Flow':
+      return `SELECT Id, FullName, MasterLabel, ApiVersion, Status, ProcessType, Metadata FROM Flow WHERE Id = '${id}' LIMIT 1`;
   }
 }
 
@@ -370,6 +465,8 @@ function resourceLookupQuery(kind: CodeResourceKind, id: string): string {
       return `SELECT Id, Name, NamespacePrefix, ApiVersion FROM ApexPage WHERE Id = '${safe}' LIMIT 1`;
     case 'Visualforce component':
       return `SELECT Id, Name, NamespacePrefix, ApiVersion FROM ApexComponent WHERE Id = '${safe}' LIMIT 1`;
+    case 'Flow':
+      return `SELECT Id, FullName, MasterLabel, ApiVersion, Status, ProcessType FROM Flow WHERE Id = '${safe}' LIMIT 1`;
   }
 }
 

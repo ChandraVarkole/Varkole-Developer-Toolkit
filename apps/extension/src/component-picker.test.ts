@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   componentHintFromMetadata,
   isComponentPickResultMessage,
+  navigationTabHintFromValues,
   quickActionHintFromSelectionName,
 } from './component-picker';
 
@@ -40,6 +41,21 @@ describe('Salesforce component picker', () => {
         tagName: 'runtime_platform_actions-executor-lightning-component',
       }),
     ).toBeUndefined();
+    expect(componentHintFromMetadata({ tagName: 'flowruntime-flow' })).toBeUndefined();
+  });
+
+  it('captures a custom navigation tab identity as a metadata fallback', () => {
+    expect(
+      navigationTabHintFromValues(
+        undefined,
+        'https://acme.lightning.force.com/lightning/n/SocioWatch_Settings',
+      ),
+    ).toEqual({
+      componentName: 'SocioWatch_Settings',
+      kindHint: 'unknown',
+      metadataType: 'CustomTab',
+      metadataName: 'SocioWatch_Settings',
+    });
   });
 
   it('captures a quick-action API identity as a metadata fallback', () => {

@@ -6,7 +6,7 @@ export interface PickedComponentContext {
   namespace?: string;
   tagName?: string;
   descriptor?: string;
-  metadataType?: 'QuickAction';
+  metadataType?: 'QuickAction' | 'CustomTab' | 'Flow';
   metadataName?: string;
 }
 
@@ -27,6 +27,8 @@ interface ComponentMetadata {
 const SALESFORCE_NAMESPACES = new Set([
   'aura',
   'flexipage',
+  'flowbuilder',
+  'flowruntime',
   'force',
   'forcechatter',
   'instrumentation',
@@ -49,6 +51,7 @@ const SALESFORCE_NAMESPACES = new Set([
 const COMPONENT_NAME = /^[A-Za-z][A-Za-z0-9_]{0,159}$/;
 const COMPONENT_NAMESPACE = /^[A-Za-z][A-Za-z0-9_]{0,79}$/;
 const QUICK_ACTION_NAME = /^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)?$/;
+const METADATA_NAME = /^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)?$/;
 
 /**
  * Converts component identity markers into a Salesforce metadata lookup hint.
@@ -112,6 +115,66 @@ export function quickActionHintFromSelectionName(
   };
 }
 
+export function navigationTabHintFromComposedPath(
+  path: EventTarget[],
+): PickedComponentContext | undefined {
+  for (const target of path) {
+    if (!(target instanceof Element)) continue;
+    const hint = navigationTabHintFromValues(
+      target.getAttribute('data-target-selection-name') ?? undefined,
+      target instanceof HTMLAnchorElement
+        ? target.href
+        : (target.getAttribute('href') ?? undefined),
+    );
+    if (hint) return hint;
+  }
+  return undefined;
+}
+
+export function navigationTabHintFromValues(
+  selectionName?: string,
+  href?: string,
+): PickedComponentContext | undefined {
+  const selectionMatch = selectionName
+    ?.trim()
+    .match(/^sfdc:TabDefinition\.([A-Za-z][A-Za-z0-9_]*)$/)?.[1];
+  let routeMatch: string | undefined;
+  if (href) {
+    try {
+      routeMatch = new URL(href, 'https://salesforce.invalid').pathname.match(
+        /\/lightning\/n\/([A-Za-z][A-Za-z0-9_]*)/i,
+      )?.[1];
+    } catch {
+      // An invalid href is not a Salesforce tab identity.
+    }
+  }
+  const tabName = selectionMatch ?? routeMatch;
+  if (!tabName || !METADATA_NAME.test(tabName)) return undefined;
+  return {
+    componentName: tabName,
+    kindHint: 'unknown',
+    metadataType: 'CustomTab',
+    metadataName: tabName,
+  };
+}
+
+export function flowHintFromComposedPath(path: EventTarget[]): PickedComponentContext | undefined {
+  for (const target of path) {
+    if (!(target instanceof Element)) continue;
+    const flowName = ['flow-api-name', 'data-flow-api-name', 'flow-name', 'data-flow-name']
+      .map((attribute) => target.getAttribute(attribute)?.trim())
+      .find((value) => value && METADATA_NAME.test(value));
+    if (!flowName) continue;
+    return {
+      componentName: flowName,
+      kindHint: 'unknown',
+      metadataType: 'Flow',
+      metadataName: flowName,
+    };
+  }
+  return undefined;
+}
+
 export function componentHintFromElement(element: Element): PickedComponentContext | undefined {
   return componentHintFromMetadata({
     tagName: element.tagName,
@@ -158,10 +221,12 @@ export function isComponentPickResultMessage(value: unknown): value is Component
       (typeof component.tagName === 'string' && component.tagName.length <= 240)) &&
     (component.descriptor === undefined ||
       (typeof component.descriptor === 'string' && component.descriptor.length <= 240)) &&
-    (component.metadataType === undefined || component.metadataType === 'QuickAction') &&
+    (component.metadataType === undefined ||
+      component.metadataType === 'QuickAction' ||
+      component.metadataType === 'CustomTab' ||
+      component.metadataType === 'Flow') &&
     (component.metadataName === undefined ||
-      (typeof component.metadataName === 'string' &&
-        QUICK_ACTION_NAME.test(component.metadataName)))
+      (typeof component.metadataName === 'string' && METADATA_NAME.test(component.metadataName)))
   );
 }
 
@@ -185,7 +250,7 @@ function isSalesforceNamespace(value: string): boolean {
   const normalized = value.toLowerCase();
   return (
     SALESFORCE_NAMESPACES.has(normalized) ||
-    /^(?:runtime_|force(?:_|$)|lightning(?:_|$)|records(?:_|$)|flexipage(?:_|$)|aura(?:_|$)|ui(?:_|$)|one(?:_|$)|navex(?:_|$)|instrumentation(?:_|$))/.test(
+    /^(?:runtime_|flowruntime(?:_|$)|flowbuilder(?:_|$)|force(?:_|$)|lightning(?:_|$)|records(?:_|$)|flexipage(?:_|$)|aura(?:_|$)|ui(?:_|$)|one(?:_|$)|navex(?:_|$)|instrumentation(?:_|$))/.test(
       normalized,
     )
   );

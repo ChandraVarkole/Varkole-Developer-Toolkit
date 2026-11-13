@@ -3,6 +3,7 @@ import {
   SalesforceMetadataClient,
   parseCustomTabMetadata,
   parseMetadataFileProperties,
+  parseQuickActionMetadata,
 } from './metadata-client';
 import { SalesforceTransport } from './transport';
 
@@ -90,5 +91,19 @@ describe('SalesforceMetadataClient', () => {
         'My_Tab',
       ),
     ).toMatchObject({ fullName: 'My_Tab', auraComponent: 'c:myTab' });
+  });
+
+  it('reads the Flow or component behind a quick action', () => {
+    expect(
+      parseQuickActionMetadata(
+        '<result><records><fullName>Account.Create_Address</fullName><label>Create Address</label><type>Flow</type><flowDefinition>Create_Address_Flow</flowDefinition></records></result>',
+        'Account.Create_Address',
+      ),
+    ).toEqual({
+      fullName: 'Account.Create_Address',
+      label: 'Create Address',
+      type: 'Flow',
+      flowDefinition: 'Create_Address_Flow',
+    });
   });
 });

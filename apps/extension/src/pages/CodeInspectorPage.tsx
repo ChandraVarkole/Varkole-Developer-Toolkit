@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { CustomTabMetadata, OrgIdentity, QueryPage, RecordInspection } from '@varkole/shared';
+import type {
+  CustomTabMetadata,
+  OrgIdentity,
+  QueryPage,
+  QuickActionMetadata,
+  RecordInspection,
+} from '@varkole/shared';
 import { sendMessage } from '../api';
 import type { ComponentPickResult, PickedComponentContext } from '../component-picker';
 import { CopyButton } from '../components/CopyButton';
@@ -13,10 +19,13 @@ import {
   customTabDependencyQuery,
   dependencyQuery,
   directContextQueries,
+  flowComponentQueriesFromRecords,
+  flowTargetQueries,
   overrideResourceQuery,
   pageContextFromSalesforceUrl,
   pickedComponentQueries,
   quickActionDependencyQuery,
+  quickActionTargetQueries,
   recordTriggerQuery,
   sortContextResources,
   sourceQuery,
@@ -74,6 +83,15 @@ export function CodeInspectorPage({
       if (pickedComponent) {
         if (pickedComponent.metadataType === 'QuickAction' && pickedComponent.metadataName) {
           try {
+            const action = await sendMessage<QuickActionMetadata>({
+              type: 'GET_QUICK_ACTION',
+              payload: { key: org.key, actionName: pickedComponent.metadataName },
+            });
+            roots.push(...(await runDefinitions(org, quickActionTargetQueries(action))));
+          } catch {
+            // Dependency metadata below remains available when Quick Action metadata is restricted.
+          }
+          try {
             const actionDependencies = await runToolingQuery(
               org,
               quickActionDependencyQuery(pickedComponent.metadataName),
@@ -84,14 +102,29 @@ export function CodeInspectorPage({
           } catch {
             // Exact bundle lookup below remains available when dependency metadata is restricted.
           }
+        } else if (pickedComponent.metadataType === 'CustomTab' && pickedComponent.metadataName) {
+          try {
+            const tab = await sendMessage<CustomTabMetadata>({
+              type: 'GET_CUSTOM_TAB',
+              payload: { key: org.key, tabName: pickedComponent.metadataName },
+            });
+            setCurrentTabLabel(tab.label ?? tab.fullName);
+            roots.push(...(await runDefinitions(org, customTabTargetQueries(tab))));
+          } catch {
+            // Exact same-name component lookup below remains available.
+          }
+        } else if (pickedComponent.metadataType === 'Flow' && pickedComponent.metadataName) {
+          roots.push(
+            ...(await runDefinitions(org, flowTargetQueries(pickedComponent.metadataName))),
+          );
         }
         if (!roots.length) {
           roots.push(...(await runDefinitions(org, pickedComponentQueries(pickedComponent))));
         }
         if (!roots.length) {
           setContextNote(
-            pickedComponent.metadataType === 'QuickAction'
-              ? `Salesforce identified ${pickedComponent.metadataName}, but did not expose its backing component through dependency metadata or an exact bundle lookup.`
+            pickedComponent.metadataType
+              ? `Salesforce identified ${pickedComponent.metadataName}, but did not expose an accessible backing Flow or component through metadata.`
               : `Salesforce rendered ${pickedComponent.componentName}, but its bundle metadata is not readable in this session.`,
           );
         }
@@ -188,8 +221,17 @@ export function CodeInspectorPage({
       }
 
       const rootResources = sortContextResources(roots);
+      const flowComponentDefinitions: CodeQueryDefinition[] = [];
+      for (const flow of rootResources.filter((resource) => resource.kind === 'Flow')) {
+        try {
+          const flowSource = await runToolingQuery(org, sourceQuery(flow));
+          flowComponentDefinitions.push(...flowComponentQueriesFromRecords(flowSource.records));
+        } catch {
+          // Managed or restricted Flow metadata can remain hidden while its inventory row is visible.
+        }
+      }
       const relatedQuery = dependencyQuery(rootResources.map((resource) => resource.id));
-      let related: CodeResource[] = [];
+      let related = await runDefinitions(org, flowComponentDefinitions);
       if (relatedQuery) {
         try {
           const dependencyResult = await runToolingQuery(org, relatedQuery);

@@ -2,6 +2,8 @@ import { recordIdFromSalesforceUrl } from './record-context';
 import {
   componentHintFromComposedPath,
   componentHintFromElement,
+  flowHintFromComposedPath,
+  navigationTabHintFromComposedPath,
   quickActionHintFromComposedPath,
   type ComponentPickResultMessage,
   type PickedComponentContext,
@@ -21,9 +23,17 @@ let panelHost: HTMLDivElement | undefined;
 let panelWidth: number | undefined;
 let isOpen = false;
 let componentPickerCleanup: (() => void) | undefined;
+let interactionTrackingStarted = false;
+let recentMetadataContext: { component: PickedComponentContext; capturedAt: number } | undefined;
+const RECENT_CONTEXT_MS = 120_000;
 
 function initialize() {
   if (panelWrapper || document.getElementById(HOST_ID)) return;
+
+  if (!interactionTrackingStarted) {
+    interactionTrackingStarted = true;
+    document.addEventListener('click', rememberSalesforceMetadataContext, true);
+  }
 
   const host = document.createElement('div');
   panelHost = host;
@@ -271,19 +281,19 @@ function startComponentPicker() {
     document.removeEventListener('pointermove', handlePointerMove, true);
     document.removeEventListener('click', handleClick, true);
     outline.style.display = 'none';
-    const quickAction = quickActionHintFromComposedPath(event.composedPath());
-    if (quickAction) {
-      waitForRenderedComponent(quickAction);
-      return;
-    }
     const component = componentHintFromComposedPath(event.composedPath());
     if (component) {
       finish({ type: 'VARKOLE_COMPONENT_PICK_RESULT', status: 'found', component });
       return;
     }
+    const metadataContext = metadataContextFromComposedPath(event.composedPath());
+    if (metadataContext) {
+      waitForRenderedComponent(metadataContext);
+      return;
+    }
     // The Salesforce click is intentionally allowed to continue. Quick actions and tabs often
     // create their custom component host only after the click handler completes.
-    waitForRenderedComponent();
+    waitForRenderedComponent(recentMetadataFallback());
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -301,6 +311,29 @@ function startComponentPicker() {
   document.addEventListener('click', handleClick, true);
   document.addEventListener('keydown', handleKeydown, true);
   componentPickerCleanup = () => finish();
+}
+
+function metadataContextFromComposedPath(path: EventTarget[]): PickedComponentContext | undefined {
+  return (
+    quickActionHintFromComposedPath(path) ??
+    navigationTabHintFromComposedPath(path) ??
+    flowHintFromComposedPath(path)
+  );
+}
+
+function rememberSalesforceMetadataContext(event: MouseEvent) {
+  const component = metadataContextFromComposedPath(event.composedPath());
+  if (!component) return;
+  recentMetadataContext = { component, capturedAt: Date.now() };
+}
+
+function recentMetadataFallback(): PickedComponentContext | undefined {
+  if (!recentMetadataContext) return undefined;
+  if (Date.now() - recentMetadataContext.capturedAt > RECENT_CONTEXT_MS) {
+    recentMetadataContext = undefined;
+    return undefined;
+  }
+  return recentMetadataContext.component;
 }
 
 function findNewVisibleComponent(

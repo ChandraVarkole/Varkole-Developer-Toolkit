@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.7.27 — Screen Flow and Custom Tab inspection
+
+- Fixed Code Inspector stopping at Salesforce's `flowruntime:flow` Screen Flow container instead
+  of an accessible custom Flow screen component.
+- Added safe, short-lived tracking of Quick Action and Custom Tab API identities so a component can
+  still be resolved after Salesforce replaces the clicked launcher with a runtime modal or page.
+- Added Metadata API resolution for Quick Actions, including backing Flow, LWC, Aura, and
+  Visualforce targets.
+- Added active Flow version inspection and dependency traversal so accessible Flow metadata and
+  referenced custom components can be displayed together.
+- Added Custom Tab click resolution using the tab API identity and existing Custom Tab metadata.
+- Added regression coverage for Flow runtime wrappers, custom navigation tabs, Quick Action Flow
+  metadata, and active Flow source queries.
+
 ## 0.7.26 — Quick action and lazy LWC targeting
 
 - Fixed Code Inspector selecting Salesforce's internal

@@ -153,6 +153,10 @@ async function handleRequest(request: UiRequest): Promise<unknown> {
       return withMetadataClient(request.payload.key, (client) =>
         client.readCustomTab(request.payload.tabName),
       );
+    case 'GET_QUICK_ACTION':
+      return withMetadataClient(request.payload.key, (client) =>
+        client.readQuickAction(request.payload.actionName),
+      );
     case 'GET_APEX_LOG_BODY':
       return withToolingClient(request.payload.key, (client) =>
         client.getApexLogBody(request.payload.logId),

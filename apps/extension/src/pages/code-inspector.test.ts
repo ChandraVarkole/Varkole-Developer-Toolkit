@@ -6,8 +6,11 @@ import {
   customTabTargetQueries,
   customTabDependencyQuery,
   directContextQueries,
+  flowComponentQueriesFromRecords,
   pageContextFromSalesforceUrl,
   pickedComponentQueries,
+  flowTargetQueries,
+  quickActionTargetQueries,
   recordTriggerQuery,
   quickActionDependencyQuery,
   sourceQuery,
@@ -86,6 +89,55 @@ describe('Code Inspector context helpers', () => {
     const query = quickActionDependencyQuery('Account.Create_Address');
     expect(query).toContain("MetadataComponentType = 'QuickAction'");
     expect(query).toContain("'Account.Create_Address', 'Create_Address'");
+  });
+
+  it('resolves Flow quick actions to the active Flow version', () => {
+    const [definition] = quickActionTargetQueries({
+      fullName: 'Account.Create_Address',
+      type: 'Flow',
+      flowDefinition: 'Create_Address_Flow',
+    });
+    expect(definition?.kind).toBe('Flow');
+    expect(definition?.query).toContain("DeveloperName = 'Create_Address_Flow'");
+    expect(flowTargetQueries('Create_Address_Flow')[0]?.query).toContain('ActiveVersionId');
+
+    const flow = codeResourcesFromDependencies([
+      {
+        MetadataComponentId: '0M0000000000002AAA',
+        RefMetadataComponentId: '300000000000001AAA',
+        RefMetadataComponentName: 'Create_Address_Flow',
+        RefMetadataComponentType: 'Flow',
+      },
+    ])[0];
+    expect(flow).toMatchObject({ kind: 'Flow', name: 'Create_Address_Flow' });
+  });
+
+  it('finds accessible custom screen components in Flow metadata', () => {
+    const queries = flowComponentQueriesFromRecords([
+      {
+        Metadata: {
+          screens: [
+            {
+              fields: [
+                { extensionName: 'c:addressSelector' },
+                { extensionName: 'acme__salesOpportunityPicker' },
+                { extensionName: 'flowruntime:standardNavigation' },
+              ],
+            },
+          ],
+        },
+      },
+    ]);
+    expect(queries).toHaveLength(4);
+    expect(queries.map((definition) => definition.query).join('\n')).toContain(
+      "DeveloperName = 'addressSelector' AND NamespacePrefix = null",
+    );
+    expect(queries.map((definition) => definition.query).join('\n')).toContain(
+      "DeveloperName = 'salesOpportunityPicker' AND NamespacePrefix = 'acme'",
+    );
+    expect(queries.map((definition) => definition.query).join('\n')).not.toContain(
+      'standardNavigation',
+    );
   });
 
   it('keeps only supported UI and Apex dependencies', () => {

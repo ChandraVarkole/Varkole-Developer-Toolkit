@@ -1,4 +1,4 @@
-import type { CustomTabMetadata, MetadataFileProperty } from '@varkole/shared';
+import type { CustomTabMetadata, MetadataFileProperty, QuickActionMetadata } from '@varkole/shared';
 import type { SalesforceTransport } from './transport';
 
 export class SalesforceMetadataClient {
@@ -32,6 +32,19 @@ export class SalesforceMetadataClient {
     );
     return parseCustomTabMetadata(result.data, fullName);
   }
+
+  async readQuickAction(fullName: string, signal?: AbortSignal): Promise<QuickActionMetadata> {
+    if (!/^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)?$/.test(fullName)) {
+      throw new Error('Salesforce returned an invalid quick action name.');
+    }
+    const result = await this.transport.postMetadataSoap(
+      `/services/Soap/m/${this.apiVersion}`,
+      'readMetadata',
+      `<met:readMetadata><met:type>QuickAction</met:type><met:fullNames>${escapeXml(fullName)}</met:fullNames></met:readMetadata>`,
+      signal,
+    );
+    return parseQuickActionMetadata(result.data, fullName);
+  }
 }
 
 export function parseCustomTabMetadata(xml: string, requestedName: string): CustomTabMetadata {
@@ -54,6 +67,25 @@ export function parseCustomTabMetadata(xml: string, requestedName: string): Cust
     ...(page ? { page } : {}),
     ...(customObject ? { customObject: customObject.toLowerCase() === 'true' } : {}),
     ...(url ? { url } : {}),
+  };
+}
+
+export function parseQuickActionMetadata(xml: string, requestedName: string): QuickActionMetadata {
+  const record = xml.match(/<(?:\w+:)?records(?:\s[^>]*)?>([\s\S]*?)<\/(?:\w+:)?records>/i)?.[1];
+  if (!record) throw new Error(`Salesforce did not return metadata for action ${requestedName}.`);
+  const fullName = readTag(record, 'fullName') ?? requestedName;
+  const label = readTag(record, 'label');
+  const type = readTag(record, 'type');
+  const flowDefinition = readTag(record, 'flowDefinition');
+  const lightningComponent = readTag(record, 'lightningComponent');
+  const visualforcePage = readTag(record, 'visualforcePage');
+  return {
+    fullName,
+    ...(label ? { label } : {}),
+    ...(type ? { type } : {}),
+    ...(flowDefinition ? { flowDefinition } : {}),
+    ...(lightningComponent ? { lightningComponent } : {}),
+    ...(visualforcePage ? { visualforcePage } : {}),
   };
 }
 
