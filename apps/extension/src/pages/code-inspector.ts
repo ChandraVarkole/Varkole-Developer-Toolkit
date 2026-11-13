@@ -21,7 +21,10 @@ export type CodeRelationship =
   | 'Selected component'
   | 'Current page'
   | 'Object automation'
-  | 'Related component';
+  | 'Related component'
+  | 'Search result'
+  | 'Uses'
+  | 'Used by';
 
 export interface CodeResource {
   id: string;
@@ -306,6 +309,77 @@ export function pickedComponentQueries(component: PickedComponentContext): Array
   return queries;
 }
 
+export function codeSearchSosl(searchText: string): string {
+  const terms = searchText.match(/[A-Za-z0-9_]{2,80}/g)?.slice(0, 5) ?? [];
+  if (!terms.length) throw new Error('Enter at least two letters or numbers to search code.');
+  const find = terms.map((term) => `${term}*`).join(' AND ');
+  return `FIND {${find}} IN ALL FIELDS RETURNING ApexClass(Id, Name, NamespacePrefix, ApiVersion, Status LIMIT 50), ApexTrigger(Id, Name, NamespacePrefix, ApiVersion, Status, TableEnumOrId LIMIT 50), ApexPage(Id, Name, NamespacePrefix, ApiVersion LIMIT 50), ApexComponent(Id, Name, NamespacePrefix, ApiVersion LIMIT 50)`;
+}
+
+export function codeNameSearchQueries(searchText: string): Array<{
+  kind: CodeResourceKind;
+  query: string;
+  relationship: CodeRelationship;
+}> {
+  const terms = searchText.match(/[A-Za-z0-9_]{2,80}/g)?.slice(0, 5) ?? [];
+  if (!terms.length) throw new Error('Enter at least two letters or numbers to search code.');
+  const pattern = `%${terms.join('%')}%`;
+  return [
+    {
+      kind: 'Apex class',
+      query: `SELECT Id, Name, NamespacePrefix, ApiVersion, Status FROM ApexClass WHERE Name LIKE '${pattern}' ORDER BY Name LIMIT 50`,
+      relationship: 'Search result',
+    },
+    {
+      kind: 'Apex trigger',
+      query: `SELECT Id, Name, NamespacePrefix, ApiVersion, Status, TableEnumOrId FROM ApexTrigger WHERE Name LIKE '${pattern}' ORDER BY Name LIMIT 50`,
+      relationship: 'Search result',
+    },
+    {
+      kind: 'LWC',
+      query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM LightningComponentBundle WHERE DeveloperName LIKE '${pattern}' ORDER BY DeveloperName LIMIT 50`,
+      relationship: 'Search result',
+    },
+    {
+      kind: 'Aura',
+      query: `SELECT Id, DeveloperName, NamespacePrefix, ApiVersion FROM AuraDefinitionBundle WHERE DeveloperName LIKE '${pattern}' ORDER BY DeveloperName LIMIT 50`,
+      relationship: 'Search result',
+    },
+    {
+      kind: 'Visualforce page',
+      query: `SELECT Id, Name, NamespacePrefix, ApiVersion FROM ApexPage WHERE Name LIKE '${pattern}' ORDER BY Name LIMIT 50`,
+      relationship: 'Search result',
+    },
+    {
+      kind: 'Visualforce component',
+      query: `SELECT Id, Name, NamespacePrefix, ApiVersion FROM ApexComponent WHERE Name LIKE '${pattern}' ORDER BY Name LIMIT 50`,
+      relationship: 'Search result',
+    },
+    {
+      kind: 'Flow',
+      query: `SELECT Id, DeveloperName, MasterLabel, NamespacePrefix, ActiveVersionId, LatestVersionId, ManageableState FROM FlowDefinition WHERE DeveloperName LIKE '${pattern}' OR MasterLabel LIKE '${pattern}' ORDER BY DeveloperName LIMIT 50`,
+      relationship: 'Search result',
+    },
+    {
+      kind: 'Lightning page',
+      query: `SELECT Id, DeveloperName, MasterLabel, NamespacePrefix, Type, SobjectType FROM FlexiPage WHERE DeveloperName LIKE '${pattern}' OR MasterLabel LIKE '${pattern}' ORDER BY DeveloperName LIMIT 50`,
+      relationship: 'Search result',
+    },
+  ];
+}
+
+export function codeResourcesFromSearchRecords(records: QueryRecord[]): CodeResource[] {
+  return uniqueCodeResources(
+    records
+      .map((record) => {
+        const type = text(record.attributes?.type);
+        const kind = METADATA_TYPE_KINDS[type];
+        return kind ? codeResourceFromRecord(kind, record, 'Search result') : undefined;
+      })
+      .filter((resource): resource is CodeResource => Boolean(resource)),
+  );
+}
+
 export function recordTriggerQuery(objectApiName: string): string {
   return `SELECT Id, Name, NamespacePrefix, ApiVersion, Status, TableEnumOrId FROM ApexTrigger WHERE TableEnumOrId = '${safeName(objectApiName)}' ORDER BY Name LIMIT 100`;
 }
@@ -370,6 +444,12 @@ export function dependencyQuery(resourceIds: string[]): string | undefined {
   return `SELECT MetadataComponentId, MetadataComponentName, MetadataComponentType, RefMetadataComponentId, RefMetadataComponentName, RefMetadataComponentType FROM MetadataComponentDependency WHERE MetadataComponentId IN (${ids.map((id) => `'${id}'`).join(', ')}) LIMIT 500`;
 }
 
+export function reverseDependencyQuery(resourceIds: string[]): string | undefined {
+  const ids = [...new Set(resourceIds)].slice(0, 100).map(safeId);
+  if (!ids.length) return undefined;
+  return `SELECT MetadataComponentId, MetadataComponentName, MetadataComponentType, RefMetadataComponentId, RefMetadataComponentName, RefMetadataComponentType FROM MetadataComponentDependency WHERE RefMetadataComponentId IN (${ids.map((id) => `'${id}'`).join(', ')}) LIMIT 500`;
+}
+
 export function codeResourcesFromDependencies(
   records: QueryRecord[],
   relationship: CodeRelationship = 'Related component',
@@ -386,6 +466,27 @@ export function codeResourcesFromDependencies(
         kind,
         relationship,
         ...(text(record.MetadataComponentId) ? { parentId: text(record.MetadataComponentId) } : {}),
+      };
+    })
+    .filter((resource): resource is CodeResource => Boolean(resource));
+  return uniqueCodeResources(resources);
+}
+
+export function codeResourcesFromReverseDependencies(records: QueryRecord[]): CodeResource[] {
+  const resources = records
+    .map((record): CodeResource | undefined => {
+      const id = text(record.MetadataComponentId);
+      const name = text(record.MetadataComponentName);
+      const kind = METADATA_TYPE_KINDS[text(record.MetadataComponentType)];
+      if (!id || !name || !kind) return undefined;
+      return {
+        id,
+        name,
+        kind,
+        relationship: 'Used by',
+        ...(text(record.RefMetadataComponentId)
+          ? { parentId: text(record.RefMetadataComponentId) }
+          : {}),
       };
     })
     .filter((resource): resource is CodeResource => Boolean(resource));
@@ -437,9 +538,12 @@ export function codeFilesFromRecords(resource: CodeResource, records: QueryRecor
 export function sortContextResources(resources: CodeResource[]): CodeResource[] {
   const priority: Record<CodeRelationship, number> = {
     'Selected component': 0,
-    'Current page': 1,
-    'Object automation': 2,
-    'Related component': 3,
+    'Search result': 1,
+    'Current page': 2,
+    'Object automation': 3,
+    Uses: 4,
+    'Used by': 5,
+    'Related component': 6,
   };
   return uniqueCodeResources(resources).sort(
     (left, right) =>

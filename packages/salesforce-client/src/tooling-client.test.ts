@@ -146,3 +146,42 @@ describe('SalesforceToolingClient code query pagination', () => {
     );
   });
 });
+
+describe('SalesforceToolingClient developer search', () => {
+  it('runs SOSL through the Tooling API search endpoint', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          searchRecords: [
+            {
+              attributes: { type: 'ApexClass' },
+              Id: '01p000000000001AAA',
+              Name: 'AddressSyncService',
+            },
+          ],
+        }),
+        { headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+    const client = new SalesforceToolingClient({
+      transport: new SalesforceTransport({
+        instanceUrl: 'https://acme.my.salesforce.com',
+        accessToken: 'secret-token',
+        fetchImpl,
+      }),
+      apiVersion: '68.0',
+    });
+
+    await expect(
+      client.search('FIND {address*} RETURNING ApexClass(Id, Name)'),
+    ).resolves.toMatchObject({
+      totalSize: 1,
+      done: true,
+      records: [expect.objectContaining({ Name: 'AddressSyncService' })],
+    });
+    const requestedUrl = fetchImpl.mock.calls[0]?.[0];
+    expect(requestedUrl instanceof URL ? requestedUrl.pathname : '').toBe(
+      '/services/data/v68.0/tooling/search/',
+    );
+  });
+});

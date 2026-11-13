@@ -4103,6 +4103,37 @@ tbody tr:hover td {
   background: white;
   font-size: 10px;
 }
+.code-search-form {
+  display: grid;
+  gap: 6px;
+}
+.code-search-form label {
+  color: #344c6c;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.code-search-form > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+.code-search-form .button {
+  min-height: 34px;
+  padding-inline: 10px;
+}
+.code-search-form small,
+.dependency-path {
+  color: #73849b;
+  font-size: 8px;
+  line-height: 1.35;
+}
+.dependency-path {
+  display: block;
+  margin-top: 5px;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+}
 .code-resource-list {
   flex: 1;
   max-height: 720px;

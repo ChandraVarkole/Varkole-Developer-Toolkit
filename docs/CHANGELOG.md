@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.28 — Manual code search and dependency graph
+
+- Added a Code Inspector fallback that searches accessible Apex classes, triggers, LWC and Aura
+  bundles, Visualforce pages/components, Flows, and Lightning pages by name.
+- Added Tooling API SOSL search across Salesforce-indexed Apex and Visualforce source so users can
+  also search for a function or implementation concept instead of an exact component name.
+- Added bounded dependency traversal in both directions for up to three levels and 200 related
+  resources.
+- Labeled search matches and dependency results as `Search result`, `Uses`, or `Used by`, with
+  directional arrows in the selected component view.
+- Added regression coverage for safe SOSL generation, Tooling API search, result mapping, and
+  reverse dependency queries.
+
 ## 0.7.27 — Screen Flow and Custom Tab inspection
 
 - Fixed Code Inspector stopping at Salesforce's `flowruntime:flow` Screen Flow container instead

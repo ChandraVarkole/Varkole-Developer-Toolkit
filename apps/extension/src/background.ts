@@ -157,6 +157,12 @@ async function handleRequest(request: UiRequest): Promise<unknown> {
       return withMetadataClient(request.payload.key, (client) =>
         client.readQuickAction(request.payload.actionName),
       );
+    case 'SEARCH_CODE':
+      return runAbortable(request.payload.requestId, (signal) =>
+        withToolingClient(request.payload.key, (client) =>
+          client.search(request.payload.sosl, signal),
+        ),
+      );
     case 'GET_APEX_LOG_BODY':
       return withToolingClient(request.payload.key, (client) =>
         client.getApexLogBody(request.payload.logId),

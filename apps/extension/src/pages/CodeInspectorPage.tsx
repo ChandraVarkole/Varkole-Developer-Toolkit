@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type {
   CustomTabMetadata,
   OrgIdentity,
@@ -12,6 +12,10 @@ import { CopyButton } from '../components/CopyButton';
 import { EmptyState, InlineError } from '../components/Status';
 import {
   activeRecordPageOverride,
+  codeNameSearchQueries,
+  codeResourcesFromReverseDependencies,
+  codeResourcesFromSearchRecords,
+  codeSearchSosl,
   codeFilesFromRecords,
   codeResourceFromRecord,
   codeResourcesFromDependencies,
@@ -27,6 +31,7 @@ import {
   quickActionDependencyQuery,
   quickActionTargetQueries,
   recordTriggerQuery,
+  reverseDependencyQuery,
   sortContextResources,
   sourceQuery,
   type CodeFile,
@@ -61,6 +66,9 @@ export function CodeInspectorPage({
   const [selected, setSelected] = useState<CodeResource>();
   const [files, setFiles] = useState<CodeFile[]>([]);
   const [filter, setFilter] = useState('');
+  const [manualSearch, setManualSearch] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string>();
   const [currentObject, setCurrentObject] = useState<string>();
   const [currentTabLabel, setCurrentTabLabel] = useState<string>();
   const [loading, setLoading] = useState(false);
@@ -230,20 +238,13 @@ export function CodeInspectorPage({
           // Managed or restricted Flow metadata can remain hidden while its inventory row is visible.
         }
       }
-      const relatedQuery = dependencyQuery(rootResources.map((resource) => resource.id));
-      let related = await runDefinitions(org, flowComponentDefinitions);
-      if (relatedQuery) {
-        try {
-          const dependencyResult = await runToolingQuery(org, relatedQuery);
-          related = codeResourcesFromDependencies(dependencyResult.records);
-        } catch {
-          setContextNote((note) =>
-            note
-              ? `${note} Salesforce did not expose dependency metadata for this context.`
-              : 'Salesforce did not expose dependency metadata for this context.',
-          );
-        }
-      }
+      const related = await runDefinitions(org, flowComponentDefinitions);
+      related.push(
+        ...(await loadDependencyGraph(
+          org,
+          rootResources.map((resource) => resource.id),
+        )),
+      );
 
       const next = sortContextResources([...rootResources, ...related]);
       setResources(next);
@@ -327,6 +328,18 @@ export function CodeInspectorPage({
     );
   }, [filter, resources]);
 
+  const selectedDependencies = useMemo(
+    () => (selected ? resources.filter((resource) => resource.parentId === selected.id) : []),
+    [resources, selected],
+  );
+  const selectedParent = useMemo(
+    () =>
+      selected?.parentId
+        ? resources.find((resource) => resource.id === selected.parentId)
+        : undefined,
+    [resources, selected],
+  );
+
   if (!org) {
     return (
       <EmptyState
@@ -342,6 +355,72 @@ export function CodeInspectorPage({
     setError(undefined);
     setContextNote('Click a quick action, tab, modal, or component in the Salesforce page.');
     window.parent.postMessage({ type: 'VARKOLE_START_COMPONENT_PICK' }, '*');
+  }
+
+  async function searchAccessibleCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!org) return;
+    const term = manualSearch.trim();
+    if (!term) return;
+    setSearching(true);
+    setSearchError(undefined);
+    try {
+      const nameDefinitions = codeNameSearchQueries(term);
+      const [nameMatches, indexedSearch] = await Promise.all([
+        runDefinitions(org, nameDefinitions),
+        sendMessage<QueryPage>({
+          type: 'SEARCH_CODE',
+          payload: {
+            key: org.key,
+            sosl: codeSearchSosl(term),
+            requestId: crypto.randomUUID(),
+          },
+        }).catch(() => undefined),
+      ]);
+      const roots = sortContextResources([
+        ...nameMatches,
+        ...codeResourcesFromSearchRecords(indexedSearch?.records ?? []),
+      ]);
+      if (!roots.length) {
+        setResources([]);
+        setSelected(undefined);
+        setContextNote(`No accessible code or metadata matched “${term}”.`);
+        return;
+      }
+
+      const related: CodeResource[] = [];
+      const flowDefinitions: CodeQueryDefinition[] = [];
+      for (const flow of roots.filter((resource) => resource.kind === 'Flow')) {
+        try {
+          const flowSource = await runToolingQuery(org, sourceQuery(flow));
+          flowDefinitions.push(...flowComponentQueriesFromRecords(flowSource.records));
+        } catch {
+          // Other search matches and dependency metadata remain available.
+        }
+      }
+      related.push(...(await runDefinitions(org, flowDefinitions)));
+
+      related.push(
+        ...(await loadDependencyGraph(
+          org,
+          roots.map((resource) => resource.id),
+        )),
+      );
+
+      const next = sortContextResources([...roots, ...related]);
+      setResources(next);
+      setSelected(roots[0]);
+      setFilter('');
+      setContextNote(
+        `Found ${roots.length} accessible match${roots.length === 1 ? '' : 'es'} for “${term}” and loaded ${related.length} exposed dependency link${related.length === 1 ? '' : 's'}.`,
+      );
+    } catch (cause) {
+      setSearchError(
+        cause instanceof Error ? cause.message : 'Salesforce code search could not be completed.',
+      );
+    } finally {
+      setSearching(false);
+    }
   }
 
   return (
@@ -412,10 +491,37 @@ export function CodeInspectorPage({
       <div className="code-inspector-layout">
         <aside className="code-resource-panel">
           <div className="code-resource-filters">
+            <form
+              className="code-search-form"
+              onSubmit={(event) => void searchAccessibleCode(event)}
+            >
+              <label htmlFor="code-search">Find by name or function</label>
+              <div>
+                <input
+                  id="code-search"
+                  value={manualSearch}
+                  onChange={(event) => setManualSearch(event.target.value)}
+                  placeholder="Component, class, Flow, feature…"
+                  type="search"
+                />
+                <button
+                  className="button button-primary button-compact"
+                  type="submit"
+                  disabled={searching || manualSearch.trim().length < 2}
+                >
+                  {searching ? 'Searching…' : 'Find'}
+                </button>
+              </div>
+              <small>
+                Searches accessible metadata and indexed source, then follows three dependency
+                levels.
+              </small>
+            </form>
+            <InlineError message={searchError} />
             <input
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
-              placeholder="Filter related components…"
+              placeholder="Filter loaded results…"
               type="search"
             />
           </div>
@@ -456,9 +562,36 @@ export function CodeInspectorPage({
                     {selected.status ? ` · ${selected.status}` : ''}
                     {selected.apiVersion ? ` · API v${selected.apiVersion}` : ''}
                   </small>
+                  {selectedParent && (
+                    <small className="dependency-path">
+                      {selected.relationship === 'Used by'
+                        ? `${selected.name} → ${selectedParent.name}`
+                        : `${selectedParent.name} → ${selected.name}`}
+                    </small>
+                  )}
                 </div>
                 <CopyButton value={selected.name} label="Copy component name" />
               </div>
+
+              {selectedDependencies.length > 0 && (
+                <div className="related-code">
+                  <strong>Dependency map</strong>
+                  <div>
+                    {selectedDependencies.map((resource) => (
+                      <button
+                        type="button"
+                        key={`${resource.relationship}-${resource.id}`}
+                        onClick={() => setSelected(resource)}
+                      >
+                        {resource.relationship === 'Used by'
+                          ? `${resource.name} → ${selected.name}`
+                          : `${selected.name} → ${resource.name}`}
+                        <span>{resource.kind}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <InlineError message={sourceError} />
               {loadingSource ? (
@@ -537,4 +670,49 @@ async function runToolingQuery(org: OrgIdentity, soql: string): Promise<QueryPag
       requestId: crypto.randomUUID(),
     },
   });
+}
+
+async function runOptionalToolingQuery(
+  org: OrgIdentity,
+  soql?: string,
+): Promise<QueryPage | undefined> {
+  if (!soql) return undefined;
+  try {
+    return await runToolingQuery(org, soql);
+  } catch {
+    return undefined;
+  }
+}
+
+async function loadDependencyGraph(
+  org: OrgIdentity,
+  rootIds: string[],
+  maximumDepth = 3,
+  maximumResources = 200,
+): Promise<CodeResource[]> {
+  const seen = new Set(rootIds);
+  let frontier = [...seen];
+  const resources: CodeResource[] = [];
+
+  for (let depth = 0; depth < maximumDepth && frontier.length; depth += 1) {
+    const [usesResult, usedByResult] = await Promise.all([
+      runOptionalToolingQuery(org, dependencyQuery(frontier)),
+      runOptionalToolingQuery(org, reverseDependencyQuery(frontier)),
+    ]);
+    const level = [
+      ...codeResourcesFromDependencies(usesResult?.records ?? [], 'Uses'),
+      ...codeResourcesFromReverseDependencies(usedByResult?.records ?? []),
+    ];
+    const next: string[] = [];
+    for (const resource of level) {
+      resources.push(resource);
+      if (!seen.has(resource.id) && seen.size < maximumResources) {
+        seen.add(resource.id);
+        next.push(resource.id);
+      }
+      if (resources.length >= maximumResources) return resources;
+    }
+    frontier = next;
+  }
+  return resources;
 }

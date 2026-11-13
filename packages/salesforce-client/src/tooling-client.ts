@@ -13,6 +13,10 @@ interface RawQueryResponse {
   nextRecordsUrl?: string;
 }
 
+interface RawSearchResponse {
+  searchRecords?: QueryRecord[];
+}
+
 export class SalesforceToolingClient {
   private readonly transport: SalesforceTransport;
   private readonly apiRoot: string;
@@ -44,6 +48,23 @@ export class SalesforceToolingClient {
     const result = await this.transport.get<RawQueryResponse>(nextRecordsUrl, signal);
     return {
       ...result.data,
+      ...(result.apiUsage ? { apiUsage: result.apiUsage } : {}),
+      elapsedMs: Math.round(performance.now() - started),
+    };
+  }
+
+  async search(sosl: string, signal?: AbortSignal): Promise<QueryPage> {
+    if (!/^\s*FIND\s*\{/i.test(sosl)) throw new Error('Enter a valid SOSL search.');
+    const started = performance.now();
+    const result = await this.transport.get<RawSearchResponse>(
+      `${this.apiRoot}/search/?q=${encodeURIComponent(sosl)}`,
+      signal,
+    );
+    const records = Array.isArray(result.data.searchRecords) ? result.data.searchRecords : [];
+    return {
+      totalSize: records.length,
+      done: true,
+      records,
       ...(result.apiUsage ? { apiUsage: result.apiUsage } : {}),
       elapsedMs: Math.round(performance.now() - started),
     };

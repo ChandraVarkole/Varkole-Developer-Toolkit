@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeRecordPageOverride,
+  codeNameSearchQueries,
+  codeResourcesFromReverseDependencies,
+  codeResourcesFromSearchRecords,
+  codeSearchSosl,
   codeFilesFromRecords,
   codeResourcesFromDependencies,
   customTabTargetQueries,
@@ -12,6 +16,7 @@ import {
   flowTargetQueries,
   quickActionTargetQueries,
   recordTriggerQuery,
+  reverseDependencyQuery,
   quickActionDependencyQuery,
   sourceQuery,
   type CodeResource,
@@ -83,6 +88,46 @@ describe('Code Inspector context helpers', () => {
       pickedComponentQueries({ componentName: 'localAction', kindHint: 'aura', namespace: 'c' })[0]
         ?.query,
     ).toContain("DeveloperName = 'localAction' AND NamespacePrefix = null");
+  });
+
+  it('builds a bounded developer-code search from plain words', () => {
+    expect(codeSearchSosl('address sync')).toContain('FIND {address* AND sync*}');
+    expect(codeSearchSosl('address sync')).toContain('ApexClass');
+    expect(
+      codeNameSearchQueries('address sync').find((query) => query.kind === 'LWC')?.query,
+    ).toContain("DeveloperName LIKE '%address%sync%'");
+    expect(() => codeSearchSosl('!')).toThrow('at least two');
+  });
+
+  it('maps indexed code matches and both dependency directions', () => {
+    expect(
+      codeResourcesFromSearchRecords([
+        {
+          attributes: { type: 'ApexClass' },
+          Id: '01p000000000001AAA',
+          Name: 'AddressSyncService',
+        },
+      ]),
+    ).toEqual([
+      expect.objectContaining({
+        name: 'AddressSyncService',
+        kind: 'Apex class',
+        relationship: 'Search result',
+      }),
+    ]);
+    expect(reverseDependencyQuery(['01p000000000001AAA'])).toContain(
+      "RefMetadataComponentId IN ('01p000000000001AAA')",
+    );
+    expect(
+      codeResourcesFromReverseDependencies([
+        {
+          MetadataComponentId: '0Rb000000000001AAA',
+          MetadataComponentName: 'addressPanel',
+          MetadataComponentType: 'LightningComponentBundle',
+          RefMetadataComponentId: '01p000000000001AAA',
+        },
+      ]),
+    ).toEqual([expect.objectContaining({ name: 'addressPanel', relationship: 'Used by' })]);
   });
 
   it('resolves a selected quick action through Salesforce dependency metadata', () => {
