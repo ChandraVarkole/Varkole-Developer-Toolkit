@@ -9,7 +9,7 @@ Do not select **Submit for review** until all of these are true:
 
 - The privacy-policy, homepage, and support URLs open in a signed-out/incognito browser.
 - The manual release checks in `docs/TESTING.md` have been completed against the exact ZIP.
-- At least one current 1280x800 or 640x400 screenshot and the required store graphics are uploaded.
+- At least one current 1280x800 screenshot and the required 128x128 store icon are uploaded.
 - The dashboard privacy answers match the policy and extension behavior described below.
 - The publisher Google Account has two-step verification enabled.
 
@@ -135,12 +135,18 @@ creditworthiness, and is transferred only to Salesforce and the user-selected AI
 for user-requested functionality. The public privacy policy contains the required Limited Use
 statement.
 
+**Remote code**
+
+Select **No, I am not using remote code**. All executable JavaScript is packaged in the extension.
+Salesforce and optional AI-provider responses are treated as data; the extension does not download
+or execute JavaScript, WebAssembly, or AI-generated code.
+
 ## Listing images
 
 - Store icon: use the packaged 128x128 Varkole icon.
-- Screenshots: upload one to five current, full-bleed images at 1280x800 or 640x400.
-- Small promotional tile: 440x280.
-- Marquee image, if supplied: 1400x560.
+- Screenshots: upload one to five current, full-bleed images at 1280x800.
+- Small promotional tile, optional: 440x280 PNG or JPEG.
+- Marquee image, optional: 1400x560 PNG or JPEG.
 - Use only a sandbox or Developer Edition with synthetic data. Redact usernames, emails, org IDs,
   record IDs, customer data, logs, queries, and API keys.
 
@@ -151,6 +157,18 @@ Recommended screenshot order:
 3. Debug Logs inline viewer or Code Coverage overall/per-file view.
 4. Admin inventories such as Flows, packages, and integrations.
 5. AI Agent disclosure and a grounded response using synthetic Salesforce data.
+
+## Test instructions
+
+- Paste `docs/CHROME_WEB_STORE_REVIEWER_NOTES.md` into the dashboard's Test instructions field.
+- Create a dedicated Salesforce Developer Edition or sandbox user with synthetic records and only
+  the permissions required to demonstrate the listed tools.
+- Enter that Salesforce username and password only in the dashboard's private test-credential
+  fields. Do not commit credentials or include them in screenshots.
+- Confirm the reviewer login does not depend on a company VPN, trusted IP range, expired password,
+  or an MFA method that the reviewer cannot complete.
+- AI Agent is optional. A provider API key is not required to review the extension's primary
+  Salesforce developer-toolkit purpose. Do not put a personal provider key in reviewer notes.
 
 ## Distribution and submission
 
