@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0 — Developer workflow and access comparison
+
+- Added Developer Tools with a cache-bypassing reload for the matching Salesforce tab, plus safe
+  links to Lightning Debug Mode and Session Settings. Varkole does not request broad browsing-data
+  access or clear sign-in cookies, passwords, or unrelated site data.
+- Added Permission Comparator for Profile-to-Profile, Profile-to-Permission-Set, and
+  Permission-Set-to-Permission-Set comparisons across system, object, field, Apex class,
+  Visualforce page, and tab permissions exposed to the current user.
+- Split large system-permission retrieval into bounded Salesforce queries and identify categories
+  that the current user cannot inspect instead of presenting incomplete data as complete.
+- Added explicit copy controls to Access Assignment assignee and username cells, including
+  Salesforce relationship values returned as JSON.
+- Promoted the Chrome extension manifest to version 1.0 for the production review package.
+
 ## 0.7.31 — Simple SOQL object entry
 
 - Fixed the SOQL object input interrupting text entry when a partial value matched a standard

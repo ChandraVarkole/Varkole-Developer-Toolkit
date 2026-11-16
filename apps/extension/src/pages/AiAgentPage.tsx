@@ -39,8 +39,9 @@ import {
   shouldRequestRelationshipGapPlan,
 } from './ai-evidence';
 
-const MAX_CHAT_MESSAGES = 18;
-const MAX_PROMPT_CHARACTERS = 7_000;
+const MAX_PROMPT_CHARACTERS = 32_000;
+const MAX_PROVIDER_MESSAGES = 40;
+const MAX_PROVIDER_CONVERSATION_CHARACTERS = 96_000;
 
 const PROVIDERS: {
   id: AiProvider;
@@ -218,32 +219,27 @@ export function AiAgentPage({
   async function askAgent() {
     const question = prompt.trim();
     if (!question || !org || !status.configured || !status.dataConsentGranted || asking) return;
-    if (messages.length >= MAX_CHAT_MESSAGES) {
-      setError(
-        'This chat has reached its context limit. Click Clear Chat and start a new chat, then ask a narrower question.',
-      );
-      return;
-    }
     if (question.length > MAX_PROMPT_CHARACTERS) {
       setError(
-        `This question is over the ${MAX_PROMPT_CHARACTERS.toLocaleString()}-character limit. Shorten it, or click Clear Chat and start a focused chat.`,
+        `This single question exceeds the browser request limit. Keep it under ${MAX_PROMPT_CHARACTERS.toLocaleString()} characters; the chat itself can continue without a fixed turn limit.`,
       );
       return;
     }
     const userMessage: AiChatMessage = { role: 'user', content: question };
-    const conversation = [...messages, userMessage].slice(-19);
-    const planningTranscript = conversation
+    const conversation = [...messages, userMessage];
+    const providerConversation = compactConversation(conversation);
+    const planningTranscript = providerConversation
       .map((message) => `${message.role === 'user' ? 'User' : 'AI Agent'}: ${message.content}`)
       .join('\n')
-      .slice(-20_000);
-    const userTranscript = conversation
+      .slice(-60_000);
+    const userTranscript = providerConversation
       .filter((message) => message.role === 'user')
       .map((message) => message.content)
       .join('\n')
-      .slice(-12_000);
-    const recentUserTranscript = conversation
+      .slice(-40_000);
+    const recentUserTranscript = providerConversation
       .filter((message) => message.role === 'user')
-      .slice(-2)
+      .slice(-4)
       .map((message) => message.content)
       .join('\n');
     setMessages(conversation);
@@ -270,9 +266,9 @@ export function AiAgentPage({
           ...selectRelevantAiObjects(objects, lookupTranscript),
           ...(currentRecordObject && pageContextRequested ? [currentRecordObject.name] : []),
         ]),
-      ].slice(0, 5);
+      ].slice(0, 10);
       const seedDescribes = await loadDescribes(org, seedNames);
-      const planningDescribeNames = relatedDescribeNames(seedDescribes, objects, seedNames, 6);
+      const planningDescribeNames = relatedDescribeNames(seedDescribes, objects, seedNames, 12);
       let describes = await loadDescribes(org, planningDescribeNames);
 
       setProgress('Planning safe read-only lookups…');
@@ -293,7 +289,7 @@ export function AiAgentPage({
             retainedEvidence,
             userTranscript,
           ),
-          maxOutputTokens: 700,
+          maxOutputTokens: 1_000,
         },
       });
       const plan = parseAiReadPlan(planResponse, objects);
@@ -327,7 +323,7 @@ export function AiAgentPage({
           ...analyticsQueries,
           ...plan.queries,
         ]),
-      ].slice(0, 8);
+      ].slice(0, 14);
       const codeQueries = buildCodeDiscoveryQueries(lookupTranscript);
       const flowQueries = buildFlowInventoryQueries(recentUserTranscript);
       const toolingQueries = [...new Set([...flowQueries, ...codeQueries])];
@@ -372,7 +368,7 @@ export function AiAgentPage({
               mergeAiEvidence(retainedEvidence, currentEvidence),
               userTranscript,
             ),
-            maxOutputTokens: 700,
+            maxOutputTokens: 1_000,
           },
         });
         const gapPlan = parseAiReadPlan(gapPlanResponse, objects);
@@ -380,7 +376,7 @@ export function AiAgentPage({
         const completed = new Set(currentEvidence.map((item) => item.query.toLowerCase()));
         const gapQueries = gapPlan.queries
           .filter((query) => !completed.has(query.toLowerCase()))
-          .slice(0, Math.max(0, 10 - currentEvidence.length));
+          .slice(0, Math.max(0, 20 - currentEvidence.length));
         currentEvidence = [
           ...currentEvidence,
           ...(await Promise.all(gapQueries.map((query) => runAiQuery(org, query)))),
@@ -407,7 +403,7 @@ export function AiAgentPage({
               mergeAiEvidence(retainedEvidence, currentEvidence),
               userTranscript,
             ),
-            maxOutputTokens: 700,
+            maxOutputTokens: 1_000,
           },
         });
         const gapPlan = parseAiReadPlan(gapPlanResponse, objects);
@@ -415,7 +411,7 @@ export function AiAgentPage({
         const completed = new Set(currentEvidence.map((item) => item.query.toLowerCase()));
         const gapQueries = gapPlan.queries
           .filter((query) => !completed.has(query.toLowerCase()))
-          .slice(0, Math.max(0, 10 - currentEvidence.length));
+          .slice(0, Math.max(0, 20 - currentEvidence.length));
         currentEvidence = [
           ...currentEvidence,
           ...(await Promise.all(gapQueries.map((query) => runAiQuery(org, query)))),
@@ -446,9 +442,9 @@ export function AiAgentPage({
       let answer = await sendMessage<string>({
         type: 'ASK_AI',
         payload: {
-          messages: conversation,
+          messages: providerConversation,
           salesforceContext,
-          maxOutputTokens: 4_000,
+          maxOutputTokens: 8_000,
         },
       });
       const evidenceIssue = evidenceAnswerIssue(answer, evidence);
@@ -457,15 +453,15 @@ export function AiAgentPage({
         answer = await sendMessage<string>({
           type: 'ASK_AI',
           payload: {
-            messages: [
-              ...conversation,
+            messages: compactConversation([
+              ...providerConversation,
               {
                 role: 'user' as const,
                 content: `Rewrite the answer to satisfy this evidence validation failure: ${evidenceIssue} Cite factual Salesforce claims only with supplied [E#] evidence. Clearly label anything not inspected, partial, or errored.`,
               },
-            ].slice(-20),
+            ]),
             salesforceContext,
-            maxOutputTokens: 4_000,
+            maxOutputTokens: 8_000,
           },
         });
         const remainingIssue = evidenceAnswerIssue(answer, evidence);
@@ -479,7 +475,7 @@ export function AiAgentPage({
         role: 'assistant',
         content: cleanEvidenceCitations(answer),
       };
-      setMessages([...conversation, assistantMessage].slice(-20));
+      setMessages([...conversation, assistantMessage]);
     } catch (cause) {
       setError(friendlyAiError(cause));
     } finally {
@@ -774,15 +770,7 @@ export function AiAgentPage({
               </button>
             </div>
             <div className="ai-composer-meta">
-              <span>
-                {prompt.length.toLocaleString()} / {MAX_PROMPT_CHARACTERS.toLocaleString()}{' '}
-                characters
-              </span>
-              {messages.length >= MAX_CHAT_MESSAGES - 2 && (
-                <strong>
-                  This chat is nearly full. Use Clear Chat before starting a new topic.
-                </strong>
-              )}
+              <span>{prompt.length.toLocaleString()} characters</span>
             </div>
             {!status.configured && (
               <p className="muted ai-chat-note">
@@ -801,6 +789,25 @@ export function AiAgentPage({
         ))}
     </div>
   );
+}
+
+function compactConversation(messages: AiChatMessage[]): AiChatMessage[] {
+  const selected: AiChatMessage[] = [];
+  let characters = 0;
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (!message) continue;
+    if (
+      selected.length >= MAX_PROVIDER_MESSAGES ||
+      (selected.length > 0 &&
+        characters + message.content.length > MAX_PROVIDER_CONVERSATION_CHARACTERS)
+    ) {
+      break;
+    }
+    selected.push(message);
+    characters += message.content.length;
+  }
+  return selected.reverse();
 }
 
 async function loadOrgFoundation(
@@ -871,8 +878,8 @@ async function runAiQuery(
   query: string,
   mode: 'rest' | 'tooling' = 'rest',
 ): Promise<AiQueryObservation> {
-  const maxRecords = 500;
-  const maxPages = 3;
+  const maxRecords = 2_000;
+  const maxPages = 10;
   const retrievedAt = new Date().toISOString();
   try {
     const pages: QueryPage[] = [
@@ -1054,11 +1061,11 @@ async function runAiAnalytics(
 function friendlyAiError(cause: unknown): string {
   const message = cause instanceof Error ? cause.message : 'AI Agent could not answer.';
   if (
-    /(?:context|token|message).*(?:limit|length|large|maximum)|(?:too large|under 8,000|between 1 and 20)/i.test(
+    /(?:context|token|message).*(?:limit|length|large|maximum)|(?:too large|under 32,000|between 1 and 40)/i.test(
       message,
     )
   ) {
-    return 'This chat has reached the model context limit. Click Clear Chat and start a new chat, then ask a narrower question.';
+    return 'The selected model could not fit this request. Varkole keeps the chat available; try a more focused follow-up or use Clear Chat to start a different topic.';
   }
   return message;
 }

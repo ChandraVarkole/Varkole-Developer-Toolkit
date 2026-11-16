@@ -33,6 +33,7 @@ export const READ_ONLY_MODULES: Record<string, ReadOnlyQueryConfig> = {
       'PermissionSet.Label': 'Permission set',
       'PermissionSet.IsOwnedByProfile': 'From profile',
     },
+    copyableColumns: ['Assignee.Name', 'Assignee.Username'],
     query:
       'SELECT Assignee.Name, Assignee.Username, PermissionSet.Label, PermissionSet.IsOwnedByProfile FROM PermissionSetAssignment ORDER BY Assignee.Name LIMIT 200',
   },

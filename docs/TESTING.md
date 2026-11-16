@@ -96,5 +96,15 @@
     link opens on the selected Salesforce org, and a returned absolute URL for another host is not
     rendered as a link. Verify usernames, technical IDs/API names/URLs/JSON, and the Org Info
     instance URL can be copied while names and email cells remain uncluttered.
+28. Open Developer Tools from a disposable sandbox tab and choose Reload Salesforce. Verify the
+    matching org tab reloads without signing the user out, another org's tab is not reloaded, and
+    the Debug Mode and Session Settings links stay on the selected org. Confirm the manifest does
+    not request Chrome's broad `browsingData` permission.
+29. Open Permission Comparator and compare two Profiles, two Permission Sets, and one of each.
+    Verify differences for a known system permission, object CRUD, field read/edit access, Apex
+    class access, Visualforce page access, and tab visibility against Salesforce Setup. Repeat with
+    a restricted user and confirm inaccessible categories are labeled unavailable. In Access
+    Assignments, verify the Assignee and Username values have working copy buttons, including an
+    object-shaped relationship response.
 
 Do read-only production validation only after explicit approval. Never use production writes during Phase 1.

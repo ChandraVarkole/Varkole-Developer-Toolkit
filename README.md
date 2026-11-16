@@ -1,7 +1,6 @@
 # Varkole Developer Toolkit
 
-The current packaged release is a private beta build. Its Chrome manifest is labeled **BETA** and
-states **THIS EXTENSION IS FOR BETA TESTING** for trusted-tester distribution.
+The current packaged release is prepared for a public production Chrome Web Store listing.
 
 Phase 0 plus the first Phase 1 vertical slice of a Salesforce developer-toolkit Chrome extension. The extension automatically uses the authenticated user session from the active Salesforce tab, matching the Salesforce Inspector interaction model. OAuth 2.0 Authorization Code + PKCE is an optional fallback for orgs with API Access Control.
 
@@ -23,7 +22,7 @@ npm run verify
 An `.env` file is not required for normal browser-session use. To enable the OAuth fallback, copy `.env.example` to `.env` and set `VITE_SALESFORCE_CLIENT_ID` to the public consumer key. No client secret belongs in this repository or extension.
 
 Load `apps/extension/dist` from `chrome://extensions` using **Load unpacked**. Always keep this same
-stable folder as the owner-development installation—do not load a version-numbered beta release
+stable folder as the owner-development installation—do not load a version-numbered release
 folder. After future builds, select **Reload** for Varkole in `chrome://extensions` and refresh open
 Salesforce tabs once. Chrome reloads only the exact folder that was originally selected; it cannot
 switch an unpacked installation to a newer versioned folder.

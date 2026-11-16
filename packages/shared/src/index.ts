@@ -251,6 +251,7 @@ export type UiRequest =
     }
   | { type: 'DELETE_QUERY_HISTORY'; payload: { key: string; id: string } }
   | { type: 'CLEAR_QUERY_HISTORY'; payload: { key: string } }
+  | { type: 'RELOAD_SALESFORCE_WITHOUT_CACHE'; payload: { key: string } }
   | {
       type: 'CONFIGURE_AI';
       payload: {

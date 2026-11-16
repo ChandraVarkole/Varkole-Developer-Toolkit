@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   cookieMatchesOrg,
   normalizeSalesforceApiHost,
+  salesforcePageMatchesInstance,
   selectApiSessionCookie,
 } from './session-cookie';
 
@@ -76,5 +77,26 @@ describe('browser session selection', () => {
     expect(normalizeSalesforceApiHost('acme--dev.sandbox.lightning.force.com')).toBe(
       'acme--dev.sandbox.my.salesforce.com',
     );
+  });
+
+  it('matches the Lightning and Setup variants of the selected org only', () => {
+    expect(
+      salesforcePageMatchesInstance(
+        'https://acme.lightning.force.com/lightning/page/home',
+        'https://acme.my.salesforce.com',
+      ),
+    ).toBe(true);
+    expect(
+      salesforcePageMatchesInstance(
+        'https://acme.my.salesforce-setup.com/lightning/setup/DebugMode/home',
+        'https://acme.my.salesforce.com',
+      ),
+    ).toBe(true);
+    expect(
+      salesforcePageMatchesInstance(
+        'https://other.lightning.force.com/lightning/page/home',
+        'https://acme.my.salesforce.com',
+      ),
+    ).toBe(false);
   });
 });

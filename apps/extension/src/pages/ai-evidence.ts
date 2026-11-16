@@ -6,7 +6,7 @@ const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: tr
 export function selectRelevantAiObjects(
   objects: SalesforceObjectSummary[],
   conversation: string,
-  limit = 4,
+  limit = 10,
 ): string[] {
   const terms = conversation
     .toLowerCase()
@@ -204,7 +204,7 @@ function deterministicFields(describe: SalesforceObjectDescribe): string[] {
 export function mergeAiEvidence(
   retained: AiQueryObservation[],
   current: AiQueryObservation[],
-  limit = 20,
+  limit = 30,
 ): AiQueryObservation[] {
   const byQuery = new Map<string, AiQueryObservation>();
   for (const observation of [...retained, ...current]) {

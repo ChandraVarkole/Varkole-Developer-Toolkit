@@ -2,18 +2,17 @@
 
 ## Current recommendation
 
-Version 0.7.31 is correctly labeled as a beta and its package is structurally ready for Chrome Web
-Store upload. It is not yet ready to submit for public review until the owner-controlled blockers
-below are completed.
+Version 1.0 is prepared as a production listing package. Complete the dashboard and final manual
+checks below before selecting **Submit for review**.
 
-## Automated release checks completed — November 13, 2026
+## Automated release checks completed — November 15, 2026
 
-- Exact package: `apps/extension/varkole-developer-toolkit-v0.7.31-beta.zip`
-- SHA-256: `66bb0f353016dc3f55207526e23c4ce7acf48916e79f925c7c42e03ba39df12c`
-- ZIP integrity passed; `manifest.json` is at the root and declares version `0.7.31`.
-- Manifest description is 112 characters, below Chrome's 132-character limit.
-- `npm run verify` passed formatting, lint, strict TypeScript, 36 test files / 152 tests, and the
-  production build.
+- Exact package: `VARKOLE-v1.0-UPLOAD-THIS-TO-CHROME-WEB-STORE.zip`
+- SHA-256: `26a16936f271616219ca94a445d4800d2c62775c595bd7da9c1042b99841b7dc`
+- ZIP integrity passed; `manifest.json` is at the ZIP root and declares version `1.0`.
+- Manifest description is below Chrome's 132-character limit.
+- Prettier checks for changed source, ESLint, strict TypeScript, 38 test files / 160 tests, and the
+  production build passed.
 - `npm audit --omit=dev` reports zero production vulnerabilities.
 - The full audit reports seven moderate development-only `minimatch` findings reached through
   `typescript-eslint`; those packages are not shipped in the extension ZIP.
@@ -30,9 +29,8 @@ below are completed.
 
 ## Public-release blockers
 
-1. Make the repository public or publish the same privacy policy on a stable public site. As of
-   November 13, 2026, the repository, privacy-policy URL, and Issues support URL return HTTP 404 to
-   unauthenticated visitors.
+1. Confirm the repository homepage, privacy-policy URL, and Issues support URL open in a signed-out
+   or incognito browser.
 2. Complete and record the manual tests in `docs/TESTING.md`, especially two-org isolation,
    production guards, OAuth/API Access Control, permission-denied personas, provider failures,
    incognito behavior, and extension update/reload behavior.
@@ -50,10 +48,9 @@ below are completed.
 ## Suggested rollout
 
 1. Address the owner-controlled blockers and re-run `npm run verify`.
-2. Upload the existing v0.7.31 ZIP unless source code changes are made. If source changes, increase
-   the manifest version and build a fresh ZIP.
-3. Select Public visibility with deferred publishing if the goal is a publicly listed beta; select
-   Private first if another trusted-tester review cycle is desired.
+2. Upload the v1.0 production ZIP. If source changes again, increase the manifest version and
+   build a fresh ZIP.
+3. Select Public visibility with deferred publishing for the production launch.
 4. Submit for review, complete reviewer follow-up promptly, and publish only after approval and a
    final smoke test of the exact uploaded build.
 

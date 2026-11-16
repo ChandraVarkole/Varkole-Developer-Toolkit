@@ -14,6 +14,7 @@ export function QueryResults({
   recordBaseUrl,
   columnLabels,
   hiddenColumns,
+  copyableColumns,
   expandTable = false,
 }: {
   result: QueryPage;
@@ -24,6 +25,7 @@ export function QueryResults({
   recordBaseUrl?: string | undefined;
   columnLabels?: Record<string, string> | undefined;
   hiddenColumns?: string[] | undefined;
+  copyableColumns?: string[] | undefined;
   expandTable?: boolean | undefined;
 }) {
   const [filter, setFilter] = useState('');
@@ -197,7 +199,10 @@ export function QueryResults({
                     {columns.map((column) => {
                       const value = formatCell(getPath(record, column));
                       const recordUrl = recordUrlForCell(recordBaseUrl, column, value);
-                      const copyable = isCopyableTechnicalValue(column, value);
+                      const copyable =
+                        Boolean(value) &&
+                        (copyableColumns?.includes(column) ||
+                          isCopyableTechnicalValue(column, value));
                       return (
                         <td key={column} className={recordUrl ? 'mono cell-id' : ''} title={value}>
                           <span className="table-cell-value">

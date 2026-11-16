@@ -3,11 +3,11 @@ export function AiAgentGuide({ currentRecordId }: { currentRecordId?: string | u
     <section className="ai-guide" aria-labelledby="ai-guide-title">
       <div className="ai-guide-hero">
         <div>
-          <div className="eyebrow">Guide · capabilities · limits</div>
+          <div className="eyebrow">Guide · capabilities · safeguards</div>
           <h2 id="ai-guide-title">How AI Agent works</h2>
           <p>
-            AI Agent performs bounded, read-only Salesforce lookups with your current access, then
-            asks your selected model to explain the retrieved evidence.
+            AI Agent plans and performs read-only Salesforce lookups across the selected org using
+            your current access, then asks your selected model to explain the retrieved evidence.
           </p>
         </div>
         <span className="badge badge-outline">Read only</span>
@@ -47,6 +47,11 @@ export function AiAgentGuide({ currentRecordId }: { currentRecordId?: string | u
             <li>Varkole validates and runs permitted Salesforce API requests.</li>
             <li>The model answers from the returned evidence, followed by an evidence check.</li>
           </ol>
+          <p>
+            Retrieval is not limited to the current page. Page context helps with phrases such as
+            “this record,” but Varkole can inspect other accessible records, schema, automation,
+            code, reports, dashboards, and permissions when the question requires them.
+          </p>
         </GuideCard>
 
         <GuideCard title="Current safeguards">
@@ -59,18 +64,19 @@ export function AiAgentGuide({ currentRecordId }: { currentRecordId?: string | u
           </ul>
         </GuideCard>
 
-        <GuideCard title="Why retrieval is limited">
+        <GuideCard title="How request capacity works">
           <p>
-            Varkole does not download the whole org. Targeted retrieval protects sensitive data,
-            preserves Salesforce API capacity, reduces provider cost, and keeps requests within the
-            model’s context window.
+            There is no fixed chat-turn cutoff. Varkole keeps the visible browser-session chat and
+            automatically carries the most relevant recent history and retained Salesforce evidence
+            into each request. It performs targeted retrieval instead of downloading the entire org.
           </p>
           <ul>
-            <li>Up to 7,000 characters in one question.</li>
-            <li>Up to 18 chat messages before starting a new chat.</li>
-            <li>Up to 500 records and three pages for one automatic lookup.</li>
-            <li>Up to 20 retained evidence lookups and about 50,000 context characters.</li>
-            <li>Up to 4,000 output tokens in one answer.</li>
+            <li>Automatic lookups can retrieve up to 2,000 records across ten query pages.</li>
+            <li>Requests can carry about 150,000 characters of grounded Salesforce evidence.</li>
+            <li>
+              Answers can request up to 8,000 output tokens when the selected provider allows it.
+            </li>
+            <li>The provider model’s own context, rate, quota, and billing limits still apply.</li>
           </ul>
         </GuideCard>
 

@@ -23,8 +23,8 @@ export interface AiQueryObservation {
   relationships?: string[] | undefined;
 }
 
-const DEFAULT_AI_RECORD_LIMIT = 20;
-const MAX_AI_RECORD_LIMIT = 500;
+const DEFAULT_AI_RECORD_LIMIT = 50;
+const MAX_AI_RECORD_LIMIT = 2_000;
 
 export function normalizeAiContextQuery(value: string): string {
   const query = value.trim();
@@ -43,6 +43,9 @@ export function normalizeAiContextQuery(value: string): string {
     const count = Number(limit[1]);
     if (!Number.isInteger(count) || count < 1 || count > MAX_AI_RECORD_LIMIT) {
       throw new Error(`AI context queries must use LIMIT 1 through ${MAX_AI_RECORD_LIMIT}.`);
+    }
+    if (/\bFIELDS\s*\(/i.test(query) && count > 200) {
+      throw new Error('SOQL queries using FIELDS() must use LIMIT 200 or less.');
     }
     return query;
   }
@@ -67,13 +70,13 @@ export function buildAiPlanningContext(
   const accessibleObjects = objects
     .filter((object) => object.queryable)
     .sort((left, right) => relevance(right, terms) - relevance(left, terms))
-    .slice(0, 150);
+    .slice(0, 300);
   return JSON.stringify({
     task: [
       'Return JSON only with this shape: {"objects": ["ObjectApiName"], "queries": ["SELECT ... LIMIT n"]}.',
-      'Choose at most 5 objects to describe and at most 6 SOQL SELECT queries needed to answer the user completely.',
+      'Choose at most 10 objects to describe and at most 12 SOQL SELECT queries needed to answer the user completely.',
       'Use only object API names from accessibleObjects. Never request writes or Apex.',
-      'Select only fields needed for the answer. Use LIMIT 500 when the user explicitly asks for all, a complete list, or a roster; otherwise use LIMIT 20 or less.',
+      'Select only fields needed for the answer. Use LIMIT 2000 when the user explicitly asks for all, a complete list, or a roster; use LIMIT 200 or less with FIELDS(STANDARD); otherwise use LIMIT 50 or less.',
       'When record fields are unknown, use SELECT FIELDS(STANDARD) rather than inventing field names.',
       'Use the conversation to preserve earlier object names, filters, dates, and follow-up intent.',
       'When verified current-page context is supplied, treat its record ID and resolved object as user context. Retrieve that record before answering “this”, “current”, or record-summary questions.',
@@ -114,7 +117,7 @@ export function buildAiPlanningContext(
           (left, right) =>
             planningFieldRelevance(right, terms) - planningFieldRelevance(left, terms),
         )
-        .slice(0, 18)
+        .slice(0, 40)
         .map((field) => ({
           name: field.name,
           label: field.label,
@@ -123,12 +126,12 @@ export function buildAiPlanningContext(
           ...(field.referenceTo?.length ? { referenceTo: field.referenceTo } : {}),
         })),
       childRelationshipCount: describe.childRelationships.length,
-      includedChildRelationships: Math.min(describe.childRelationships.length, 25),
+      includedChildRelationships: Math.min(describe.childRelationships.length, 60),
       childRelationships: [...describe.childRelationships]
         .sort(
           (left, right) => relationshipRelevance(right, terms) - relationshipRelevance(left, terms),
         )
-        .slice(0, 25)
+        .slice(0, 60)
         .map((relationship) => ({
           childObject: relationship.childSObject,
           field: relationship.field,
@@ -137,7 +140,7 @@ export function buildAiPlanningContext(
             : {}),
         })),
     })),
-    retainedEvidence: retainedEvidence.slice(-8).map((observation, index) => ({
+    retainedEvidence: retainedEvidence.slice(-24).map((observation, index) => ({
       evidenceId: `R${index + 1}`,
       query: observation.query,
       retrievedAt: observation.retrievedAt,
@@ -150,7 +153,7 @@ export function buildAiPlanningContext(
                 : 'success_with_records'
               : 'success_zero_records',
             totalSize: observation.result?.totalSize ?? 0,
-            records: (observation.result?.records ?? []).slice(0, 5).map(sanitizePlanningValue),
+            records: (observation.result?.records ?? []).slice(0, 12).map(sanitizePlanningValue),
           }),
     })),
   });
@@ -220,8 +223,8 @@ export function parseAiReadPlan(response: string, objects: SalesforceObjectSumma
     .filter((item): item is string => Boolean(item));
 
   return {
-    objects: [...new Set([...plannedObjects, ...queriedObjects])].slice(0, 5),
-    queries: [...new Set(plannedQueries)].slice(0, 6),
+    objects: [...new Set([...plannedObjects, ...queriedObjects])].slice(0, 10),
+    queries: [...new Set(plannedQueries)].slice(0, 12),
   };
 }
 
@@ -292,10 +295,11 @@ export function buildAutomaticAiContext(input: {
   userFocus?: string | undefined;
 }): string {
   for (const [fieldLimit, recordLimit, objectLimit, observationLimit] of [
-    [60, 200, 60, 20],
-    [30, 200, 30, 16],
-    [15, 100, 15, 12],
-    [8, 50, 8, 10],
+    [100, 500, 100, 30],
+    [60, 400, 60, 24],
+    [30, 250, 30, 20],
+    [15, 150, 15, 16],
+    [8, 75, 8, 12],
     [5, 30, 5, 8],
     [3, 20, 3, 5],
     [2, 5, 2, 3],
@@ -307,9 +311,9 @@ export function buildAutomaticAiContext(input: {
       null,
       2,
     );
-    if (serialized.length <= 49_000) return serialized;
+    if (serialized.length <= 145_000) return serialized;
   }
-  throw new Error('The automatic Salesforce context is too large. Ask a narrower question.');
+  throw new Error('The Salesforce evidence exceeds the selected model request capacity.');
 }
 
 function automaticContextValue(

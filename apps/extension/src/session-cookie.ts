@@ -37,6 +37,17 @@ export function normalizeSalesforceApiHost(hostname: string): string {
     .replace(/\.mcas\.ms$/, '');
 }
 
+export function salesforcePageMatchesInstance(pageUrl: string, instanceUrl: string): boolean {
+  try {
+    return (
+      normalizeSalesforceApiHost(new URL(pageUrl).hostname) ===
+      normalizeSalesforceApiHost(new URL(instanceUrl).hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 function isApiCapableCookieDomain(domain: string): boolean {
   const normalized = domain.toLowerCase().replace(/^\./, '');
   return (

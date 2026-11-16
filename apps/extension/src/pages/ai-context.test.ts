@@ -41,7 +41,7 @@ const objects: SalesforceObjectSummary[] = [
 describe('normalizeAiContextQuery', () => {
   it('adds a safe record limit', () => {
     expect(normalizeAiContextQuery('SELECT Id, Name FROM Account')).toBe(
-      'SELECT Id, Name FROM Account LIMIT 20',
+      'SELECT Id, Name FROM Account LIMIT 50',
     );
   });
 
@@ -52,7 +52,10 @@ describe('normalizeAiContextQuery', () => {
   });
 
   it('rejects large and non-read-only context', () => {
-    expect(() => normalizeAiContextQuery('SELECT Id FROM Account LIMIT 501')).toThrow('LIMIT 1');
+    expect(() => normalizeAiContextQuery('SELECT Id FROM Account LIMIT 2001')).toThrow('LIMIT 1');
+    expect(() => normalizeAiContextQuery('SELECT FIELDS(STANDARD) FROM Account LIMIT 201')).toThrow(
+      'FIELDS()',
+    );
     expect(() => normalizeAiContextQuery('DELETE FROM Account')).toThrow('read-only SELECT');
     expect(() => normalizeAiContextQuery('SELECT Id FROM Account; SELECT Id FROM Contact')).toThrow(
       'multiple SOQL',
@@ -77,7 +80,7 @@ describe('parseAiReadPlan', () => {
       ),
     ).toEqual({
       objects: ['Account'],
-      queries: ['SELECT Id, Name FROM Account LIMIT 20'],
+      queries: ['SELECT Id, Name FROM Account LIMIT 50'],
     });
   });
 

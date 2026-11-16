@@ -37,13 +37,13 @@ export async function requestAiResponse(
   validateAiConfig(config);
   const safeMessages = validateMessages(messages);
   const context = salesforceContext.trim();
-  if (context.length > 50_000) {
+  if (context.length > 150_000) {
     throw invalidRequest(
-      'The prepared Salesforce context is too large. Keep it under 50,000 characters.',
+      'The prepared Salesforce context is too large. Keep it under 150,000 characters.',
     );
   }
-  if (!Number.isInteger(maxOutputTokens) || maxOutputTokens < 100 || maxOutputTokens > 4_000) {
-    throw invalidRequest('AI output must be between 100 and 4,000 tokens.');
+  if (!Number.isInteger(maxOutputTokens) || maxOutputTokens < 100 || maxOutputTokens > 8_000) {
+    throw invalidRequest('AI output must be between 100 and 8,000 tokens.');
   }
   const instructions = `${SYSTEM_INSTRUCTIONS}\n\n<salesforce_context>\n${context || 'No Salesforce context was shared.'}\n</salesforce_context>`;
 
@@ -91,15 +91,15 @@ export function providerOrigin(config: Pick<AiSessionConfig, 'provider' | 'regio
 }
 
 function validateMessages(messages: AiChatMessage[]): AiChatMessage[] {
-  if (!messages.length || messages.length > 20) {
-    throw invalidRequest('Send between 1 and 20 chat messages.');
+  if (!messages.length || messages.length > 40) {
+    throw invalidRequest('Send between 1 and 40 chat messages.');
   }
   return messages.map((message) => {
     if (!['user', 'assistant'].includes(message.role) || !message.content.trim()) {
       throw invalidRequest('The chat contains an invalid message.');
     }
-    if (message.content.length > 8_000) {
-      throw invalidRequest('Each chat message must be under 8,000 characters.');
+    if (message.content.length > 32_000) {
+      throw invalidRequest('Each chat message must be under 32,000 characters.');
     }
     return { role: message.role, content: message.content.trim() };
   });

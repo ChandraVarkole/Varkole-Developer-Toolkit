@@ -26,6 +26,7 @@ import { addQueryHistoryEntry } from './query-history';
 import {
   cookieMatchesOrg,
   normalizeSalesforceApiHost,
+  salesforcePageMatchesInstance,
   selectApiSessionCookie,
 } from './session-cookie';
 import { isTrustedExtensionPageSender } from './message-security';
@@ -185,6 +186,8 @@ async function handleRequest(request: UiRequest): Promise<unknown> {
       return deleteQueryHistory(request.payload.key, request.payload.id);
     case 'CLEAR_QUERY_HISTORY':
       return clearQueryHistory(request.payload.key);
+    case 'RELOAD_SALESFORCE_WITHOUT_CACHE':
+      return reloadSalesforceWithoutCache(request.payload.key);
     case 'CONFIGURE_AI':
       return configureAi(request.payload);
     case 'GRANT_AI_DATA_CONSENT':
@@ -698,6 +701,42 @@ async function ensureKnownOrg(key: string): Promise<OrgIdentity> {
     });
   }
   return org;
+}
+
+async function reloadSalesforceWithoutCache(
+  key: string,
+): Promise<{ reloaded: true; title?: string }> {
+  const org = await ensureKnownOrg(key);
+  const tabs = await chrome.tabs.query({ lastFocusedWindow: true });
+  const candidates: chrome.tabs.Tab[] = [];
+
+  for (const tab of tabs) {
+    if (!tab.id || !tab.url) continue;
+    let pageUrl: URL;
+    try {
+      pageUrl = validateSalesforceUrl(tab.url);
+    } catch {
+      continue;
+    }
+    if (salesforcePageMatchesInstance(pageUrl.origin, org.instanceUrl)) {
+      candidates.push(tab);
+      continue;
+    }
+    const cookie = await chrome.cookies.get({ url: pageUrl.origin, name: 'sid' });
+    if (cookie && cookieMatchesOrg(cookie, org.orgId)) candidates.push(tab);
+  }
+
+  const target = candidates.find((tab) => tab.active) ?? candidates[0];
+  if (!target?.id) {
+    throw new AppError({
+      code: 'INVALID_REQUEST',
+      message: 'Open this Salesforce org in the current Chrome window, then try again.',
+      retryable: true,
+    });
+  }
+
+  await chrome.tabs.reload(target.id, { bypassCache: true });
+  return { reloaded: true, ...(target.title ? { title: target.title } : {}) };
 }
 
 async function requireSession(key: string): Promise<OrgTokenSession> {

@@ -21,6 +21,7 @@
   --cyan: var(--accent-secondary);
   --line: #e1e7f0;
   --muted: #64718a;
+  --ink: #17223b;
   --surface: #ffffff;
   --danger: #c23b2d;
   --safe: #087a56;
@@ -4416,5 +4417,343 @@ tbody tr:hover td {
   }
   .code-context-note small {
     margin-left: 0;
+  }
+}
+
+/* Developer Tools */
+.developer-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.developer-tool-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.developer-tool-card.compact {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.developer-tool-card h2 {
+  margin: 8px 0 4px;
+}
+
+.developer-tool-card p,
+.developer-tools-note {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.tool-card-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  border-radius: 10px;
+  color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent) 9%, white);
+  font-weight: 800;
+}
+
+.developer-tools-note {
+  font-size: 12px;
+}
+
+/* Permission Comparator */
+.permission-picker-card {
+  display: grid;
+  gap: 18px;
+}
+
+.permission-mode-row {
+  display: flex;
+  align-items: end;
+  gap: 18px;
+}
+
+.permission-mode-row p {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.permission-mode-select,
+.permission-source-search {
+  display: grid;
+  gap: 7px;
+}
+
+.permission-mode-select > span,
+.permission-source-search > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.permission-mode-select select,
+.permission-source-search input,
+.permission-results-toolbar select,
+.permission-results-toolbar input {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  background: white;
+  font: inherit;
+}
+
+.permission-mode-select select,
+.permission-results-toolbar select {
+  padding: 0 36px 0 12px;
+}
+
+.permission-mode-select select {
+  min-width: 250px;
+}
+
+.permission-picker-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+}
+
+.permission-search-combobox {
+  position: relative;
+}
+
+.permission-source-search input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0 12px;
+}
+
+.permission-suggestion-list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 5px);
+  right: 0;
+  left: 0;
+  overflow-y: auto;
+  max-height: 300px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 16px 36px rgba(15, 35, 75, 0.18);
+}
+
+.permission-suggestion-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 7px;
+  color: var(--ink);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.permission-suggestion-list button:hover,
+.permission-suggestion-list button.is-active {
+  background: color-mix(in srgb, var(--accent) 10%, white);
+}
+
+.permission-suggestion-list button span {
+  display: grid;
+  min-width: 0;
+}
+
+.permission-suggestion-list strong,
+.permission-suggestion-list small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.permission-suggestion-list small,
+.permission-suggestion-list em,
+.permission-selected-source {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.permission-suggestion-list em {
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.permission-suggestion-list p {
+  margin: 0;
+  padding: 11px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.permission-versus {
+  align-self: center;
+  padding-top: 24px;
+  color: var(--muted);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.permission-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+}
+
+.permission-summary > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 16px;
+  border-right: 1px solid var(--line);
+}
+
+.permission-summary > div:last-child {
+  border-right: 0;
+}
+
+.permission-summary strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.permission-summary span,
+.permission-effective-note {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.comparison-limits {
+  padding: 14px 16px;
+  border: 1px solid #e6c98b;
+  border-radius: 10px;
+  color: #6d4f18;
+  background: #fff9ea;
+}
+
+.comparison-limits p,
+.permission-effective-note {
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
+.permission-results-toolbar {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) auto minmax(220px, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.permission-results-toolbar select,
+.permission-results-toolbar input {
+  width: 100%;
+}
+
+.permission-results-toolbar input {
+  box-sizing: border-box;
+  padding: 0 12px;
+}
+
+.comparison-differences-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.comparison-differences-toggle input {
+  width: 16px;
+  min-height: 16px;
+  accent-color: var(--accent);
+}
+
+.permission-comparison-scroll {
+  min-height: 320px;
+  max-height: calc(100vh - 410px);
+}
+
+.permission-comparison-scroll table {
+  min-width: 760px;
+}
+
+.permission-difference td {
+  background: color-mix(in srgb, var(--accent) 5%, white);
+}
+
+@media (max-width: 1050px) {
+  .permission-picker-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .permission-versus {
+    display: none;
+  }
+
+  .permission-picker-grid .button {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 800px) {
+  .developer-tool-grid,
+  .permission-picker-grid,
+  .permission-summary,
+  .permission-results-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .permission-mode-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .permission-mode-row p {
+    margin: 0;
+  }
+
+  .permission-mode-select select {
+    min-width: 0;
+  }
+
+  .developer-tool-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .permission-summary > div {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .permission-summary > div:last-child {
+    border-bottom: 0;
   }
 }

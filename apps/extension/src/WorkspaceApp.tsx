@@ -8,6 +8,7 @@ import { useExtensionState } from './hooks';
 import { AppTabsPage } from './pages/AppTabsPage';
 import { AiAgentPage } from './pages/AiAgentPage';
 import { DebugLogsPage } from './pages/DebugLogsPage';
+import { DeveloperToolsPage } from './pages/DeveloperToolsPage';
 import { CoveragePage } from './pages/CoveragePage';
 import { CodeInspectorPage } from './pages/CodeInspectorPage';
 import { ExportPage } from './pages/ExportPage';
@@ -15,6 +16,7 @@ import { ImportPage } from './pages/ImportPage';
 import { IntegrationsPage } from './pages/IntegrationsPage';
 import { MetadataPage } from './pages/MetadataPage';
 import { OrgInfoPage } from './pages/OrgInfoPage';
+import { PermissionComparatorPage } from './pages/PermissionComparatorPage';
 import { RecordsPage } from './pages/RecordsPage';
 import { ReadOnlyQueryPage } from './pages/ReadOnlyQueryPage';
 import { READ_ONLY_MODULES } from './pages/read-only-modules';
@@ -50,6 +52,7 @@ const MODULES: ModuleItem[] = [
   { id: 'soql', label: 'SOQL', icon: '⌘', available: true, group: 'Build' },
   { id: 'run-apex', label: 'Run Apex', icon: '›_', available: true, group: 'Build' },
   { id: 'code', label: 'Code Inspector', icon: '</>', available: true, group: 'Build' },
+  { id: 'developer-tools', label: 'Developer Tools', icon: '↻', available: true, group: 'Build' },
   { id: 'logs', label: 'Debug Logs', icon: '≡', available: true, group: 'Build' },
   { id: 'org-info', label: 'Org Info', icon: '◎', available: true, group: 'Build' },
   { id: 'export', label: 'Export', icon: '↓', available: true, group: 'Build' },
@@ -57,6 +60,13 @@ const MODULES: ModuleItem[] = [
   { id: 'coverage', label: 'Code Coverage', icon: '◔', available: true, group: 'Build' },
   { id: 'users', label: 'Users', icon: '♙', available: true, group: 'Admin' },
   { id: 'access', label: 'Access Assignments', icon: '⌾', available: true, group: 'Admin' },
+  {
+    id: 'permission-compare',
+    label: 'Permissions Check',
+    icon: '⇔',
+    available: true,
+    group: 'Admin',
+  },
   { id: 'packages', label: 'Installed Packages', icon: '⬡', available: true, group: 'Admin' },
   { id: 'flows', label: 'Flows', icon: '⇄', available: true, group: 'Admin' },
   { id: 'metadata', label: 'Schema Explorer', icon: '◇', available: true, group: 'Admin' },
@@ -269,6 +279,11 @@ export function WorkspaceApp() {
                 setComponentPickResult(undefined);
               }}
             />
+          ) : activeModule.id === 'developer-tools' ? (
+            <DeveloperToolsPage
+              key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}`}
+              org={selectedOrg}
+            />
           ) : activeModule.id === 'import' ? (
             <ImportPage
               key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}`}
@@ -276,6 +291,11 @@ export function WorkspaceApp() {
             />
           ) : activeModule.id === 'org-info' ? (
             <OrgInfoPage
+              key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}`}
+              org={selectedOrg}
+            />
+          ) : activeModule.id === 'permission-compare' ? (
+            <PermissionComparatorPage
               key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}`}
               org={selectedOrg}
             />

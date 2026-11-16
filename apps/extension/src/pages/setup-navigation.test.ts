@@ -6,10 +6,22 @@ describe('Salesforce Setup navigation', () => {
 
   it('keeps allowlisted Setup links on the selected org', () => {
     expect(salesforceSetupUrl(org, SETUP_PATHS.flows)).toBe(
-      'https://acme.my.salesforce.com/lightning/setup/Flows/home',
+      'https://acme.my.salesforce-setup.com/lightning/setup/Flows/home',
     );
     expect(salesforceSetupUrl(org, SETUP_PATHS.namedCredentials)).toBe(
-      'https://acme.my.salesforce.com/lightning/setup/NamedCredential/home',
+      'https://acme.my.salesforce-setup.com/lightning/setup/NamedCredential/home',
+    );
+    expect(salesforceSetupUrl(org, SETUP_PATHS.debugMode)).toBe(
+      'https://acme.my.salesforce-setup.com/lightning/setup/UserDebugModeSetup/home',
+    );
+    expect(salesforceSetupUrl(org, SETUP_PATHS.sessionSettings)).toBe(
+      'https://acme.my.salesforce-setup.com/lightning/setup/SecuritySession/home',
+    );
+    expect(salesforceSetupUrl(org, SETUP_PATHS.apexTestExecution)).toBe(
+      'https://acme.my.salesforce-setup.com/lightning/setup/ApexTestQueue/home',
+    );
+    expect(salesforceSetupUrl(org, SETUP_PATHS.debugLogs)).toBe(
+      'https://acme.my.salesforce-setup.com/lightning/setup/ApexDebugLogs/home',
     );
   });
 

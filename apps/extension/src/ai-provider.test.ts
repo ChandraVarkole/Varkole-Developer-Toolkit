@@ -54,6 +54,34 @@ describe('AI provider adapters', () => {
     );
   });
 
+  it('allows detailed provider responses up to the expanded output budget', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ output_text: 'Detailed answer' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      requestAiResponse(
+        { provider: 'openai', apiKey: 'test-key', model: 'test-model' },
+        [{ role: 'user', content: 'Give me the complete supported answer.' }],
+        '{}',
+        8_000,
+      ),
+    ).resolves.toBe('Detailed answer');
+    const requestOptions = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    const requestBody = requestOptions?.body;
+    expect(typeof requestBody).toBe('string');
+    if (typeof requestBody !== 'string') {
+      throw new TypeError('Expected a serialized OpenAI request body.');
+    }
+    expect(JSON.parse(requestBody)).toMatchObject({
+      max_output_tokens: 8_000,
+    });
+  });
+
   it('distinguishes exhausted API credits from a temporary rate limit', async () => {
     vi.stubGlobal(
       'fetch',

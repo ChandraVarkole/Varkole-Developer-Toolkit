@@ -15,6 +15,7 @@ export interface ReadOnlyQueryConfig {
   actionLabel: string;
   transformResult?: ((result: QueryPage) => QueryPage) | undefined;
   columnLabels?: Record<string, string> | undefined;
+  copyableColumns?: string[] | undefined;
   guidance?:
     | {
         title: string;
@@ -144,6 +145,7 @@ export function ReadOnlyQueryPage({
           onNext={() => void nextPage()}
           recordBaseUrl={org.instanceUrl}
           columnLabels={config.columnLabels}
+          copyableColumns={config.copyableColumns}
           expandTable={config.expandTable}
         />
       )}

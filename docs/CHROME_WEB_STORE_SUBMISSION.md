@@ -1,7 +1,7 @@
 # Chrome Web Store submission worksheet
 
-This worksheet contains the proposed dashboard entries for **Varkole Developer Toolkit BETA**
-version 0.7.31. Re-check every entry against the uploaded ZIP before submission.
+This worksheet contains the proposed dashboard entries for **Varkole Developer Toolkit**
+version 1.0. Re-check every entry against the uploaded ZIP before submission.
 
 ## Submission gate
 
@@ -15,22 +15,22 @@ Do not select **Submit for review** until all of these are true:
 
 ## Package
 
-- File: `apps/extension/varkole-developer-toolkit-v0.7.31-beta.zip`
-- Manifest version: `0.7.31`
+- File: `VARKOLE-v1.0-UPLOAD-THIS-TO-CHROME-WEB-STORE.zip`
+- Manifest version: `1.0`
 - Expected SHA-256:
-  `66bb0f353016dc3f55207526e23c4ce7acf48916e79f925c7c42e03ba39df12c`
+  `26a16936f271616219ca94a445d4800d2c62775c595bd7da9c1042b99841b7dc`
 - `manifest.json` is at the ZIP root.
 
 ## Store listing
 
 **Name**
 
-Varkole Developer Toolkit BETA
+Varkole Developer Toolkit
 
 **Summary**
 
-THIS EXTENSION IS FOR BETA TESTING. Salesforce developer tools using your current authorized
-browser session.
+Salesforce developer tools using your current authorized browser session, with optional
+provider-direct AI assistance.
 
 **Category**
 
@@ -42,8 +42,6 @@ English
 
 **Detailed description**
 
-> THIS EXTENSION IS FOR BETA TESTING.
->
 > Varkole Developer Toolkit helps authorized Salesforce developers and administrators work with
 > the org already open in Chrome. It uses the current user's Salesforce session and effective
 > permissions; it does not provide additional access or ask for a Salesforce password.
@@ -58,6 +56,8 @@ English
 > - Org-wide and per-file Apex code coverage with guarded test execution
 > - CSV export and guided create, update, and delete imports with confirmations
 > - Users, access assignments, packages, Flows, schema, integrations, org information, and app navigation
+> - Profile and Permission Set comparison across inspectable system, object, field, Apex, Visualforce, and tab access
+> - Developer Tools for cache-bypassing reloads and direct access to Lightning Debug Mode, Session Settings, Apex tests, and trace flags
 > - Optional provider-direct AI Agent for grounded, read-only Salesforce assistance
 >
 > AI Agent is optional. Users provide their own OpenAI, Anthropic, Gemini, or Amazon Bedrock key.
@@ -172,9 +172,7 @@ Recommended screenshot order:
 
 ## Distribution and submission
 
-- Choose **Public** to create a searchable, publicly installable beta listing. Keeping `BETA` in the
-  name and `THIS EXTENSION IS FOR BETA TESTING` in the description follows Chrome's testing-version
-  guidance.
+- Choose **Public** to create a searchable, publicly installable production listing.
 - Choose all regions only if support and the privacy policy are intended for all regions.
 - On the final confirmation, disable automatic publishing to use deferred publishing. After
   approval, perform a final dashboard/package check and publish manually within Chrome's staging
