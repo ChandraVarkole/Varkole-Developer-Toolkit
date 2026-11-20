@@ -1,11 +1,20 @@
-import { useEffect, useState } from 'react';
-import type { ApiMode, OrgIdentity, QueryPage, SoqlHistoryEntry } from '@varkole/shared';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type {
+  ApiMode,
+  OrgIdentity,
+  QueryPage,
+  SalesforceObjectDescribe,
+  SalesforceObjectSummary,
+  SoqlHistoryEntry,
+} from '@varkole/shared';
 import { sendMessage } from '../api';
 import { ObjectFieldPicker } from '../components/ObjectFieldPicker';
 import { QueryResults } from '../components/QueryResults';
 import { EmptyState, InlineError } from '../components/Status';
 import { orgName } from '../org';
 import { mergeBuilderFieldsIntoSoql, updateSoqlForObjectChange } from './soql-builder';
+import { applySoqlSuggestion, objectFromSoql, soqlSuggestions } from './soql-autocomplete';
+import { deleteSavedSoql, loadSavedSoql, saveSoqlQuery, type SavedSoqlQuery } from './saved-soql';
 
 const DEFAULT_QUERY = '';
 
@@ -22,6 +31,17 @@ export function SoqlPage({ org }: { org?: OrgIdentity | undefined }) {
   const [history, setHistory] = useState<SoqlHistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [historyError, setHistoryError] = useState<string>();
+  const [savedQueries, setSavedQueries] = useState<SavedSoqlQuery[]>([]);
+  const [showSaved, setShowSaved] = useState(false);
+  const [showSaveForm, setShowSaveForm] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [objects, setObjects] = useState<SalesforceObjectSummary[]>([]);
+  const [describe, setDescribe] = useState<SalesforceObjectDescribe>();
+  const [caret, setCaret] = useState(0);
+  const [activeSuggestion, setActiveSuggestion] = useState(0);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showBuilderFields, setShowBuilderFields] = useState(true);
+  const editorRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!org) {
@@ -41,10 +61,25 @@ export function SoqlPage({ org }: { org?: OrgIdentity | undefined }) {
           setHistoryError(cause instanceof Error ? cause.message : 'Query history could not load.');
         }
       });
+    void loadSavedSoql(org.key).then((next) => active && setSavedQueries(next));
     return () => {
       active = false;
     };
   }, [org]);
+
+  useEffect(() => {
+    const objectName = objectFromSoql(soql);
+    if (!objectName) return;
+    const exact = objects.find((object) => object.name.toLowerCase() === objectName.toLowerCase());
+    if (!exact || exact.name === builderObject) return;
+    setBuilderObject(exact.name);
+    setBuilderFields([]);
+  }, [builderObject, objects, soql]);
+
+  const suggestions = useMemo(
+    () => soqlSuggestions(soql, caret, describe?.fields ?? []),
+    [caret, describe?.fields, soql],
+  );
 
   async function run(saveToHistory = true) {
     if (!org || !soql.trim()) return;
@@ -141,6 +176,40 @@ export function SoqlPage({ org }: { org?: OrgIdentity | undefined }) {
     }
   }
 
+  async function saveCurrentQuery() {
+    if (!org || !soql.trim() || !saveName.trim()) return;
+    try {
+      setSavedQueries(
+        await saveSoqlQuery(org.key, { name: saveName.trim(), soql: soql.trim(), mode }),
+      );
+      setSaveName('');
+      setShowSaveForm(false);
+      setShowSaved(true);
+      setHistoryError(undefined);
+    } catch (cause) {
+      setHistoryError(cause instanceof Error ? cause.message : 'The query could not be saved.');
+    }
+  }
+
+  async function deleteSavedQuery(id: string) {
+    if (!org) return;
+    setSavedQueries(await deleteSavedSoql(org.key, id));
+  }
+
+  function chooseSuggestion(index: number) {
+    const suggestion = suggestions[index];
+    if (!suggestion) return;
+    const next = applySoqlSuggestion(soql, caret, suggestion);
+    setSoql(next.query);
+    setCaret(next.caret);
+    setShowSuggestions(false);
+    setResult(undefined);
+    window.setTimeout(() => {
+      editorRef.current?.focus();
+      editorRef.current?.setSelectionRange(next.caret, next.caret);
+    });
+  }
+
   function changeBuilderObject(nextObject: string) {
     const changed = builderObject.toLowerCase() !== nextObject.toLowerCase();
     setSoql((current) => updateSoqlForObjectChange(current, builderObject, nextObject));
@@ -184,6 +253,13 @@ export function SoqlPage({ org }: { org?: OrgIdentity | undefined }) {
           >
             ◷ History <span className="history-count">{history.length}</span>
           </button>
+          <button
+            className={`button ${showSaved ? 'button-primary' : 'button-secondary'}`}
+            type="button"
+            onClick={() => setShowSaved((current) => !current)}
+          >
+            ★ Saved <span className="history-count">{savedQueries.length}</span>
+          </button>
           <label className="mode-select">
             <span>Query type</span>
             <select value={mode} onChange={(event) => setMode(event.target.value as ApiMode)}>
@@ -204,18 +280,24 @@ export function SoqlPage({ org }: { org?: OrgIdentity | undefined }) {
           selectedFields={builderFields}
           onSelectedFieldsChange={setBuilderFields}
           expandedFields
+          onObjectsLoaded={setObjects}
+          onDescribeLoaded={setDescribe}
+          showFields={showBuilderFields}
+          onToggleFields={() => setShowBuilderFields((current) => !current)}
         />
-        <div className="section-actions">
-          <span />
-          <button
-            className="button button-secondary"
-            type="button"
-            disabled={!builderObject.trim() || builderFields.length === 0}
-            onClick={applyBuilderFields}
-          >
-            {soql.trim() ? 'Add fields to query' : 'Build query'}
-          </button>
-        </div>
+        {showBuilderFields && (
+          <div className="section-actions">
+            <span />
+            <button
+              className="button button-secondary"
+              type="button"
+              disabled={!builderObject.trim() || builderFields.length === 0}
+              onClick={applyBuilderFields}
+            >
+              {soql.trim() ? 'Add fields to query' : 'Build query'}
+            </button>
+          </div>
+        )}
       </section>
 
       {showHistory && (
@@ -274,51 +356,200 @@ export function SoqlPage({ org }: { org?: OrgIdentity | undefined }) {
         </section>
       )}
 
+      {showSaved && (
+        <section className="section-card query-history-card">
+          <div className="section-title">
+            <div>
+              <h2>Saved queries</h2>
+              <p>
+                Saved in this browser for this org. Clearing extension storage or browser data will
+                remove them.
+              </p>
+            </div>
+          </div>
+          {savedQueries.length === 0 ? (
+            <div className="query-history-empty">
+              Save frequently used queries for one-click reuse.
+            </div>
+          ) : (
+            <div className="query-history-list">
+              {savedQueries.map((entry) => (
+                <div className="query-history-entry" key={entry.id}>
+                  <button
+                    className="query-history-restore"
+                    type="button"
+                    onClick={() => {
+                      setSoql(entry.soql);
+                      setMode(entry.mode);
+                      setShowSaved(false);
+                      setResult(undefined);
+                    }}
+                  >
+                    <span>
+                      <b>{entry.name}</b>
+                      <small>{entry.mode === 'tooling' ? 'Tooling' : 'Salesforce data'}</small>
+                    </span>
+                    <code>{entry.soql.replace(/\s+/g, ' ')}</code>
+                  </button>
+                  <button
+                    className="query-history-delete"
+                    type="button"
+                    aria-label={`Delete saved query ${entry.name}`}
+                    onClick={() => void deleteSavedQuery(entry.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       <section className="query-card">
         <div className="editor-bar">
           <span>query.soql</span>
           <span>Ctrl / ⌘ + Enter to run</span>
         </div>
-        <textarea
-          className="query-editor"
-          aria-label="SOQL query"
-          placeholder="Enter a SOQL query or choose an object and fields above"
-          spellCheck={false}
-          value={soql}
-          onChange={(event) => {
-            setSoql(event.target.value);
-            setResult(undefined);
-            setError(undefined);
-            setPageNumber(1);
-          }}
-          onKeyDown={(event) => {
-            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-              event.preventDefault();
-              void run();
-            }
-          }}
-        />
-        <div className="query-actions">
-          <span className="muted">No query text or results are sent to Varkole servers.</span>
-          {loading ? (
-            <button
-              className="button button-danger-outline"
-              type="button"
-              onClick={() => void cancel()}
-            >
-              Stop query
-            </button>
-          ) : (
-            <button
-              className="button button-primary"
-              type="button"
-              disabled={!soql.trim()}
-              onClick={() => void run()}
-            >
-              {result ? 'Run again' : 'Run query'} <kbd>⌘↵</kbd>
-            </button>
+        <div className="soql-editor-wrap">
+          <textarea
+            ref={editorRef}
+            className="query-editor"
+            aria-label="SOQL query"
+            placeholder="Enter a SOQL query or choose an object and fields above"
+            spellCheck={false}
+            value={soql}
+            onChange={(event) => {
+              setSoql(event.target.value);
+              setCaret(event.target.selectionStart);
+              setActiveSuggestion(0);
+              setShowSuggestions(true);
+              setResult(undefined);
+              setError(undefined);
+              setPageNumber(1);
+            }}
+            onKeyDown={(event) => {
+              if (showSuggestions && suggestions.length > 0) {
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  setActiveSuggestion((current) => (current + 1) % suggestions.length);
+                  return;
+                }
+                if (event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  setActiveSuggestion(
+                    (current) => (current - 1 + suggestions.length) % suggestions.length,
+                  );
+                  return;
+                }
+                if (
+                  (event.key === 'Enter' || event.key === 'Tab') &&
+                  !event.ctrlKey &&
+                  !event.metaKey
+                ) {
+                  event.preventDefault();
+                  chooseSuggestion(activeSuggestion);
+                  return;
+                }
+                if (event.key === 'Escape') {
+                  setShowSuggestions(false);
+                  return;
+                }
+              }
+              if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                event.preventDefault();
+                void run();
+              }
+            }}
+            onClick={(event) => {
+              setCaret(event.currentTarget.selectionStart);
+              setShowSuggestions(true);
+            }}
+            onKeyUp={(event) => setCaret(event.currentTarget.selectionStart)}
+            onBlur={() => window.setTimeout(() => setShowSuggestions(false), 120)}
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="soql-suggestion-list" role="listbox" aria-label="SOQL suggestions">
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={`${suggestion.kind}:${suggestion.value}`}
+                  type="button"
+                  role="option"
+                  aria-selected={index === activeSuggestion}
+                  className={index === activeSuggestion ? 'active' : ''}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() => setActiveSuggestion(index)}
+                  onClick={() => chooseSuggestion(index)}
+                >
+                  <span>
+                    <b>{suggestion.label}</b>
+                    <small>{suggestion.detail}</small>
+                  </span>
+                  <em>{suggestion.kind}</em>
+                </button>
+              ))}
+            </div>
           )}
         </div>
+        <div className="query-actions">
+          <span className="muted">No query text or results are sent to Varkole servers.</span>
+          <div className="query-run-actions">
+            <button
+              className="button button-secondary"
+              type="button"
+              disabled={!soql.trim() || loading}
+              onClick={() => {
+                setShowSaved(true);
+                setShowSaveForm((current) => !current);
+              }}
+            >
+              Save query
+            </button>
+            {loading ? (
+              <button
+                className="button button-danger-outline"
+                type="button"
+                onClick={() => void cancel()}
+              >
+                Stop query
+              </button>
+            ) : (
+              <button
+                className="button button-primary"
+                type="button"
+                disabled={!soql.trim()}
+                onClick={() => void run()}
+              >
+                {result ? 'Run again' : 'Run query'} <kbd>⌘↵</kbd>
+              </button>
+            )}
+          </div>
+        </div>
+        {showSaveForm && (
+          <div className="saved-query-form saved-query-inline">
+            <label className="saved-query-name">
+              <span>Name this query</span>
+              <input
+                value={saveName}
+                onChange={(event) => setSaveName(event.target.value)}
+                placeholder="Example: Active accounts"
+                maxLength={80}
+                autoFocus
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') void saveCurrentQuery();
+                }}
+              />
+            </label>
+            <button
+              className="button button-primary button-compact"
+              type="button"
+              disabled={!saveName.trim()}
+              onClick={() => void saveCurrentQuery()}
+            >
+              Save
+            </button>
+          </div>
+        )}
       </section>
 
       <InlineError message={error} />

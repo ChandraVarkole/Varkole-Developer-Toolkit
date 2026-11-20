@@ -3,6 +3,7 @@ import type { OrgIdentity, OrgInfo, OrgLicenseUsage } from '@varkole/shared';
 import { sendMessage } from '../api';
 import { CopyButton } from '../components/CopyButton';
 import { EmptyState, InlineError } from '../components/Status';
+import { TableActions } from '../components/TableActions';
 
 export function OrgInfoPage({ org }: { org?: OrgIdentity | undefined }) {
   const [info, setInfo] = useState<OrgInfo>();
@@ -70,12 +71,8 @@ export function OrgInfoPage({ org }: { org?: OrgIdentity | undefined }) {
             <Detail label="Signed in as" value={info.displayName} />
             <Detail label="Username" value={info.username} mono copyable />
             <Detail label="Instance URL" value={info.instanceUrl} mono copyable />
-            <Detail
-              label="Fiscal year starts"
-              value={
-                info.fiscalYearStartMonth ? monthName(info.fiscalYearStartMonth) : 'Not returned'
-              }
-            />
+            <Detail label="Time zone" value={info.timeZone ?? 'Not returned'} />
+            <Detail label="Org edition" value={info.organizationType} />
           </section>
 
           <section className="section-card">
@@ -125,6 +122,14 @@ export function OrgInfoPage({ org }: { org?: OrgIdentity | undefined }) {
 }
 
 function LicenseUsageSection({ licenses }: { licenses?: OrgLicenseUsage[] | undefined }) {
+  const rows = (licenses ?? []).map((license) => ({
+    License: license.name,
+    Status: license.status,
+    Used: license.usedLicenses,
+    Available: availableLicenses(license),
+    Total: license.totalLicenses,
+    'Usage percent': licensePercent(license),
+  }));
   return (
     <section className="section-card license-usage-section" aria-labelledby="license-usage-title">
       <div className="section-title">
@@ -132,6 +137,11 @@ function LicenseUsageSection({ licenses }: { licenses?: OrgLicenseUsage[] | unde
           <h2 id="license-usage-title">License usage</h2>
           <p>Salesforce user licenses assigned to active users.</p>
         </div>
+        <TableActions
+          rows={rows}
+          columns={['License', 'Status', 'Used', 'Available', 'Total', 'Usage percent']}
+          fileName="salesforce-license-usage"
+        />
       </div>
       {licenses === undefined ? (
         <p className="muted">
@@ -265,10 +275,6 @@ function importantLimits(limits: OrgInfo['limits']) {
 
 function formatLimitName(value: string) {
   return value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/MB$/, ' (MB)');
-}
-
-function monthName(month: number) {
-  return new Intl.DateTimeFormat(undefined, { month: 'long' }).format(new Date(2024, month - 1, 1));
 }
 
 function OrgInfoSkeleton() {

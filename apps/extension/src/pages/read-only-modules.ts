@@ -3,40 +3,6 @@ import { formatFlows, formatInstalledPackages } from './setup-inventory';
 import { SETUP_PATHS } from './setup-navigation';
 
 export const READ_ONLY_MODULES: Record<string, ReadOnlyQueryConfig> = {
-  users: {
-    title: 'Users',
-    eyebrow: 'Administration · read-only',
-    actionLabel: 'Load users',
-    expandTable: true,
-    mode: 'rest',
-    columnLabels: {
-      Name: 'Name',
-      Username: 'Username',
-      Email: 'Email',
-      IsActive: 'Active',
-      UserType: 'User type',
-      'Profile.Name': 'Profile',
-      LastLoginDate: 'Last login',
-    },
-    query:
-      'SELECT Name, Username, Email, IsActive, UserType, Profile.Name, LastLoginDate FROM User ORDER BY Name LIMIT 200',
-  },
-  access: {
-    title: 'Access Assignments',
-    eyebrow: 'Administration · read-only',
-    actionLabel: 'Load assignments',
-    expandTable: true,
-    mode: 'rest',
-    columnLabels: {
-      'Assignee.Name': 'User',
-      'Assignee.Username': 'Username',
-      'PermissionSet.Label': 'Permission set',
-      'PermissionSet.IsOwnedByProfile': 'From profile',
-    },
-    copyableColumns: ['Assignee.Name', 'Assignee.Username'],
-    query:
-      'SELECT Assignee.Name, Assignee.Username, PermissionSet.Label, PermissionSet.IsOwnedByProfile FROM PermissionSetAssignment ORDER BY Assignee.Name LIMIT 200',
-  },
   packages: {
     title: 'Installed Packages',
     eyebrow: 'Setup inventory · read-only',

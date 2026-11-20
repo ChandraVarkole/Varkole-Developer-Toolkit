@@ -1,6 +1,7 @@
 import { useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { QueryPage, QueryRecord } from '@varkole/shared';
 import { CopyButton } from './CopyButton';
+import { TableActions } from './TableActions';
 import { isCopyableTechnicalValue } from './copyable-values';
 import { recordIdFromQueryRecord, recordUrlForCell, salesforceRecordUrl } from './record-links';
 import { nextTableSort, sortQueryRecords, type TableSort } from './table-sort';
@@ -16,6 +17,8 @@ export function QueryResults({
   hiddenColumns,
   copyableColumns,
   expandTable = false,
+  clientPageSize,
+  filterPlaceholder = 'Search loaded records…',
 }: {
   result: QueryPage;
   pageNumber: number;
@@ -27,15 +30,18 @@ export function QueryResults({
   hiddenColumns?: string[] | undefined;
   copyableColumns?: string[] | undefined;
   expandTable?: boolean | undefined;
+  clientPageSize?: number | undefined;
+  filterPlaceholder?: string | undefined;
 }) {
   const [filter, setFilter] = useState('');
   const [sort, setSort] = useState<TableSort>();
+  const [clientPage, setClientPage] = useState(1);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const columns = useMemo(
     () => resultColumns(result.records).filter((column) => !hiddenColumns?.includes(column)),
     [hiddenColumns, result.records],
   );
-  const visibleRows = useMemo(() => {
+  const filteredRows = useMemo(() => {
     const filtered = filter.trim()
       ? result.records.filter((record) => {
           const needle = filter.toLowerCase();
@@ -46,6 +52,20 @@ export function QueryResults({
       : result.records;
     return sortQueryRecords(filtered, sort);
   }, [columns, filter, result.records, sort]);
+  const clientPageCount = clientPageSize
+    ? Math.max(1, Math.ceil(filteredRows.length / clientPageSize))
+    : 1;
+  const currentClientPage = Math.min(clientPage, clientPageCount);
+  const visibleRows = useMemo(
+    () =>
+      clientPageSize
+        ? filteredRows.slice(
+            (currentClientPage - 1) * clientPageSize,
+            currentClientPage * clientPageSize,
+          )
+        : filteredRows,
+    [clientPageSize, currentClientPage, filteredRows],
+  );
   const hasRecordLinks = Boolean(
     recordBaseUrl && visibleRows.some((record) => recordIdFromQueryRecord(record)),
   );
@@ -95,14 +115,29 @@ export function QueryResults({
       <div className="results-toolbar">
         <div className="result-stats">
           <strong>{result.totalSize.toLocaleString()}</strong> total rows
-          {(pageNumber > 1 || result.nextRecordsUrl) && <span>Page {pageNumber}</span>}
+          {clientPageSize ? (
+            <span>
+              Page {currentClientPage} of {clientPageCount}
+            </span>
+          ) : (
+            (pageNumber > 1 || result.nextRecordsUrl) && <span>Page {pageNumber}</span>
+          )}
         </div>
+        <TableActions
+          rows={filteredRows}
+          columns={columns}
+          columnLabels={columnLabels}
+          fileName={`${modeLabel}-results`}
+        />
         <label className="result-filter">
-          <span className="sr-only">Filter current page</span>
+          <span className="sr-only">Search all loaded records</span>
           <input
             value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-            placeholder="Filter this page…"
+            onChange={(event) => {
+              setFilter(event.target.value);
+              setClientPage(1);
+            }}
+            placeholder={filterPlaceholder}
           />
         </label>
       </div>
@@ -179,7 +214,9 @@ export function QueryResults({
                 const rowUrl = salesforceRecordUrl(recordBaseUrl, recordId);
                 return (
                   <tr key={record.attributes?.url ?? index}>
-                    <td className="row-number">{index + 1}</td>
+                    <td className="row-number">
+                      {index + 1 + (clientPageSize ? (currentClientPage - 1) * clientPageSize : 0)}
+                    </td>
                     {hasRecordLinks && (
                       <td className="record-open-cell">
                         {rowUrl && (
@@ -232,7 +269,30 @@ export function QueryResults({
         </div>
       )}
       <div className="results-footer">
-        <span>Showing {visibleRows.length.toLocaleString()} rows on this page</span>
+        <span>
+          Showing {visibleRows.length.toLocaleString()} of {filteredRows.length.toLocaleString()}{' '}
+          matching rows
+        </span>
+        {clientPageSize && clientPageCount > 1 && (
+          <div className="results-pagination">
+            <button
+              className="button button-secondary button-compact"
+              type="button"
+              disabled={currentClientPage === 1}
+              onClick={() => setClientPage(Math.max(1, currentClientPage - 1))}
+            >
+              ← Previous
+            </button>
+            <button
+              className="button button-secondary button-compact"
+              type="button"
+              disabled={currentClientPage === clientPageCount}
+              onClick={() => setClientPage(Math.min(clientPageCount, currentClientPage + 1))}
+            >
+              Next →
+            </button>
+          </div>
+        )}
         {result.nextRecordsUrl && onNext && (
           <button
             className="button button-secondary"

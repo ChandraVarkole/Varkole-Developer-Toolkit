@@ -37,6 +37,14 @@ describe('recordIdFromSalesforceUrl', () => {
     ).toBe('0011G00000ABCdeQAH');
   });
 
+  it('extracts user and other record IDs embedded in Salesforce setup address routes', () => {
+    expect(
+      recordIdFromSalesforceUrl(
+        'https://example.my.salesforce-setup.com/lightning/setup/ManageUsers/page?address=%2F0051G00000ABCdeQAH%3Fnoredirect%3D1',
+      ),
+    ).toBe('0051G00000ABCdeQAH');
+  });
+
   it('returns no context for setup pages', () => {
     expect(
       recordIdFromSalesforceUrl(

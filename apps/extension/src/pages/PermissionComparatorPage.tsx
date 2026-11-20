@@ -7,6 +7,7 @@ import type {
 } from '@varkole/shared';
 import { sendMessage } from '../api';
 import { EmptyState, InlineError } from '../components/Status';
+import { TableActions } from '../components/TableActions';
 import { useAutoLoad } from '../useAutoLoad';
 import {
   buildPermissionSnapshot,
@@ -298,6 +299,21 @@ export function PermissionComparatorPage({ org }: { org?: OrgIdentity | undefine
 
           <section className="results-card permission-results" aria-label="Permission differences">
             <div className="permission-results-toolbar">
+              <TableActions
+                rows={visible.map((entry) => ({
+                  Category: entry.category,
+                  Permission: entry.label,
+                  [leftSnapshot.source.label]: entry.left,
+                  [rightSnapshot.source.label]: entry.right,
+                }))}
+                columns={[
+                  'Category',
+                  'Permission',
+                  leftSnapshot.source.label,
+                  rightSnapshot.source.label,
+                ]}
+                fileName="permission-comparison"
+              />
               <label>
                 <span className="sr-only">Permission category</span>
                 <select

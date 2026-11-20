@@ -2,7 +2,8 @@
   "manifest_version": 3,
   "name": "Varkole Developer Toolkit",
   "short_name": "Varkole",
-  "version": "1.0",
+  "version": "1.0.1",
+  "version_name": "1.01",
   "description": "Salesforce developer utilities using your current signed-in browser session, with optional provider-direct AI assistance.",
   "minimum_chrome_version": "114",
   "action": {

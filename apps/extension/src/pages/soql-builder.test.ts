@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { mergeBuilderFieldsIntoSoql, updateSoqlForObjectChange } from './soql-builder';
 
 describe('SOQL builder updates', () => {
-  it('clears a query when the selected object changes', () => {
+  it('starts a fresh ID query when the selected object changes', () => {
     expect(
       updateSoqlForObjectChange('SELECT Id FROM Account WHERE Name != null', 'Account', 'Contact'),
-    ).toBe('');
+    ).toBe('SELECT Id\nFROM Contact\nLIMIT 100');
+  });
+
+  it('starts an ID query when an object is selected for an empty editor', () => {
+    expect(updateSoqlForObjectChange('', '', 'Account')).toBe('SELECT Id\nFROM Account\nLIMIT 100');
   });
 
   it('keeps a query when the selected object stays the same', () => {

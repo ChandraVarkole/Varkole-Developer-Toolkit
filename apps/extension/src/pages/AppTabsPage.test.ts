@@ -47,4 +47,17 @@ describe('Salesforce tab navigation links', () => {
       }),
     ).toBeUndefined();
   });
+
+  it('opens custom tabs by API name and accepts Salesforce-hosted tab URLs', () => {
+    expect(salesforceTabUrl(org, { label: 'Custom page', name: 'Custom_Page', custom: true })).toBe(
+      'https://acme.my.salesforce.com/lightning/n/Custom_Page',
+    );
+    expect(
+      salesforceTabUrl(org, {
+        label: 'Visualforce tab',
+        url: 'https://acme--c.visualforce.com/apex/CustomPage',
+        custom: true,
+      }),
+    ).toBe('https://acme--c.visualforce.com/apex/CustomPage');
+  });
 });

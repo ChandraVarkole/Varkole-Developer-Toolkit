@@ -29,6 +29,20 @@ export function sortSalesforceObjects(
   });
 }
 
+export function sortSalesforceObjectsDescending(
+  objects: SalesforceObjectSummary[],
+): SalesforceObjectSummary[] {
+  return [...objects].sort((left, right) => {
+    const leftLabel = objectDisplayLabel(left);
+    const rightLabel = objectDisplayLabel(right);
+    const leftStandard = /^[A-Za-z0-9]/.test(leftLabel);
+    const rightStandard = /^[A-Za-z0-9]/.test(rightLabel);
+    if (leftStandard !== rightStandard) return leftStandard ? -1 : 1;
+    const labelOrder = collator.compare(rightLabel, leftLabel);
+    return labelOrder || collator.compare(right.name, left.name);
+  });
+}
+
 export function matchingObjectSuggestions(
   objects: SalesforceObjectSummary[],
   input: string,

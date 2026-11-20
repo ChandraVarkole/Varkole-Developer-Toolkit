@@ -3,10 +3,16 @@ export function updateSoqlForObjectChange(
   previousObject: string,
   nextObject: string,
 ): string {
-  if (!previousObject || previousObject.toLowerCase() === nextObject.toLowerCase()) {
+  const objectName = nextObject.trim();
+  if (!objectName) return '';
+  if (
+    currentSoql.trim() &&
+    previousObject &&
+    previousObject.toLowerCase() === objectName.toLowerCase()
+  ) {
     return currentSoql;
   }
-  return '';
+  return `SELECT Id\nFROM ${objectName}\nLIMIT 100`;
 }
 
 export function mergeBuilderFieldsIntoSoql(

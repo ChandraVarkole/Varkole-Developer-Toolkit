@@ -1,5 +1,6 @@
 const RECORD_ID = /^[A-Za-z0-9]{15}(?:[A-Za-z0-9]{3})?$/;
 const DIRECT_RECORD_PARAMETERS = ['id', 'recordId', 'record', 'eid'] as const;
+const ROUTE_PARAMETERS = ['address', 'retURL', 'saveURL', 'cancelURL'] as const;
 
 export function recordIdFromSalesforceUrl(value: string): string | undefined {
   let url: URL;
@@ -14,7 +15,13 @@ export function recordIdFromSalesforceUrl(value: string): string | undefined {
     if (candidate && isRecordId(candidate)) return candidate;
   }
 
-  for (const route of decodedRouteVariants(`${url.pathname}${url.hash}`)) {
+  const routes = [`${url.pathname}${url.hash}`];
+  for (const parameter of ROUTE_PARAMETERS) {
+    const candidate = url.searchParams.get(parameter);
+    if (candidate) routes.push(candidate);
+  }
+
+  for (const route of routes.flatMap(decodedRouteVariants)) {
     const lightning = route.match(
       /\/lightning\/r\/(?:[A-Za-z][A-Za-z0-9_]*\/)?([A-Za-z0-9]{15}(?:[A-Za-z0-9]{3})?)(?:\/|$)/,
     )?.[1];

@@ -170,6 +170,7 @@ export interface OrgInfo {
   id: string;
   name: string;
   organizationType: string;
+  timeZone?: string;
   instanceName?: string;
   isSandbox: boolean;
   fiscalYearStartMonth?: number;

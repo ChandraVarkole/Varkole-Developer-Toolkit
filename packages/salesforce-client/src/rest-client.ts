@@ -30,6 +30,7 @@ interface OrganizationRecord extends QueryRecord {
   InstanceName?: string;
   IsSandbox: boolean;
   FiscalYearStartMonth?: number;
+  TimeZoneSidKey?: string;
 }
 
 interface UserLicenseRecord extends QueryRecord {
@@ -184,13 +185,38 @@ export class SalesforceRestClient {
       if (!matchingObject) throw resolutionError;
       objectApiName = matchingObject.name;
     }
-    const [describe, recordResult] = await Promise.all([
-      this.describeObject(objectApiName, signal),
-      this.transport.get<QueryRecord>(
+    const describe = await this.describeObject(objectApiName, signal);
+    let recordResult: { data: QueryRecord; apiUsage?: string };
+    try {
+      recordResult = await this.transport.get<QueryRecord>(
         `${this.apiRoot}/sobjects/${encodeURIComponent(objectApiName)}/${encodeURIComponent(recordId)}`,
         signal,
-      ),
-    ]);
+      );
+      const returnedFields = Object.keys(recordResult.data).filter((key) => key !== 'attributes');
+      if (returnedFields.length <= 1) {
+        const fallback = await this.query(
+          `SELECT FIELDS(ALL) FROM ${objectApiName} WHERE Id = '${recordId}' LIMIT 1`,
+          signal,
+        );
+        const record = fallback.records[0];
+        if (record)
+          recordResult = {
+            data: record,
+            ...(fallback.apiUsage ? { apiUsage: fallback.apiUsage } : {}),
+          };
+      }
+    } catch (recordError) {
+      const fallback = await this.query(
+        `SELECT FIELDS(ALL) FROM ${objectApiName} WHERE Id = '${recordId}' LIMIT 1`,
+        signal,
+      );
+      const record = fallback.records[0];
+      if (!record) throw recordError;
+      recordResult = {
+        data: record,
+        ...(fallback.apiUsage ? { apiUsage: fallback.apiUsage } : {}),
+      };
+    }
     return {
       objectApiName,
       describe,
@@ -341,7 +367,7 @@ export class SalesforceRestClient {
     };
     const [orgPage, limitResult, versions, licensePage] = await Promise.all([
       this.query(
-        'SELECT Id, Name, OrganizationType, InstanceName, IsSandbox, FiscalYearStartMonth FROM Organization LIMIT 1',
+        'SELECT Id, Name, OrganizationType, InstanceName, IsSandbox, FiscalYearStartMonth, TimeZoneSidKey FROM Organization LIMIT 1',
         signal,
       ),
       this.limits(signal).catch(() => unavailableLimits),
@@ -363,6 +389,7 @@ export class SalesforceRestClient {
       id: org.Id,
       name: org.Name,
       organizationType: org.OrganizationType,
+      ...(org.TimeZoneSidKey ? { timeZone: org.TimeZoneSidKey } : {}),
       ...(org.InstanceName ? { instanceName: org.InstanceName } : {}),
       isSandbox: org.IsSandbox,
       ...(org.FiscalYearStartMonth ? { fiscalYearStartMonth: org.FiscalYearStartMonth } : {}),

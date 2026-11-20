@@ -62,4 +62,20 @@ export const INTEGRATION_QUERIES: IntegrationQueryConfig[] = [
       ManageableState: 'Manageable state',
     },
   },
+  {
+    id: 'remote-sites',
+    title: 'Remote Site Settings',
+    description: 'Allowed outbound endpoints. Authentication secrets are not read.',
+    mode: 'tooling',
+    setupPath: SETUP_PATHS.remoteSites,
+    query:
+      'SELECT SiteName, EndpointUrl, IsActive, NamespacePrefix, Description FROM RemoteProxy ORDER BY SiteName',
+    columnLabels: {
+      SiteName: 'Remote site',
+      EndpointUrl: 'Endpoint URL',
+      IsActive: 'Active',
+      NamespacePrefix: 'Namespace prefix',
+      Description: 'Description',
+    },
+  },
 ];

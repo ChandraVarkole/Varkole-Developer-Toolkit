@@ -2,12 +2,13 @@ import { useMemo, useState } from 'react';
 import type { OrgIdentity, QueryPage, QueryRecord } from '@varkole/shared';
 import { sendMessage } from '../api';
 import { InlineError, EmptyState } from '../components/Status';
+import { TableActions } from '../components/TableActions';
 import { nextTableSort, sortQueryRecords, type TableSort } from '../components/table-sort';
 import { useAutoLoad } from '../useAutoLoad';
+import { loadAllQueryPages } from './query-all-pages';
 
 const LOG_QUERY =
-  'SELECT Id, StartTime, LogUser.Name, Operation, Status, LogLength, DurationMilliseconds, Request, Application FROM ApexLog ORDER BY StartTime DESC LIMIT 50';
-const GLOBAL_SEARCH_BYTE_LIMIT = 12 * 1024 * 1024;
+  'SELECT Id, StartTime, LogUser.Name, Operation, Status, LogLength, DurationMilliseconds, Request, Application FROM ApexLog ORDER BY StartTime DESC';
 
 export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
   const [result, setResult] = useState<QueryPage>();
@@ -22,27 +23,19 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
   const [globalSearch, setGlobalSearch] = useState('');
   const [searchedTerm, setSearchedTerm] = useState('');
   const [matchingIds, setMatchingIds] = useState<Set<string>>();
+  const [matchCounts, setMatchCounts] = useState<Map<string, number>>(() => new Map());
   const [searchingAll, setSearchingAll] = useState(false);
-  const [searchProgress, setSearchProgress] = useState({ complete: 0, total: 0, skipped: 0 });
+  const [searchProgress, setSearchProgress] = useState({ complete: 0, total: 0 });
 
   async function loadLogs() {
     if (!org) return;
     setLoading(true);
     setError(undefined);
     setMatchingIds(undefined);
+    setMatchCounts(new Map());
     setSearchedTerm('');
     try {
-      setResult(
-        await sendMessage<QueryPage>({
-          type: 'RUN_QUERY',
-          payload: {
-            key: org.key,
-            soql: LOG_QUERY,
-            mode: 'tooling',
-            requestId: crypto.randomUUID(),
-          },
-        }),
-      );
+      setResult(await loadAllQueryPages({ key: org.key, soql: LOG_QUERY, mode: 'tooling' }));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Salesforce could not load debug logs.');
     } finally {
@@ -76,24 +69,14 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
     if (!org || !result || !globalSearch.trim()) return;
     const term = globalSearch.trim().toLowerCase();
     const orgKey = org.key;
-    const eligible: QueryRecord[] = [];
-    let expectedBytes = 0;
-    let skipped = 0;
-    for (const record of result.records) {
-      const length = typeof record.LogLength === 'number' ? record.LogLength : 0;
-      if (expectedBytes + length > GLOBAL_SEARCH_BYTE_LIMIT) {
-        skipped += 1;
-      } else {
-        expectedBytes += length;
-        eligible.push(record);
-      }
-    }
+    const eligible = result.records;
 
     setSearchingAll(true);
     setError(undefined);
-    setSearchProgress({ complete: 0, total: eligible.length, skipped });
+    setSearchProgress({ complete: 0, total: eligible.length });
     const nextBodies = new Map(bodies);
     const matches = new Set<string>();
+    const counts = new Map<string, number>();
     let failed = 0;
     let cursor = 0;
 
@@ -111,7 +94,11 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
             });
             nextBodies.set(id, body);
           }
-          if (body.toLowerCase().includes(term)) matches.add(id);
+          const count = countOccurrences(body, term);
+          if (count > 0) {
+            matches.add(id);
+            counts.set(id, count);
+          }
         } catch {
           failed += 1;
         } finally {
@@ -123,6 +110,7 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
     await Promise.all(Array.from({ length: Math.min(4, eligible.length) }, () => worker()));
     setBodies(nextBodies);
     setMatchingIds(matches);
+    setMatchCounts(counts);
     setSearchedTerm(globalSearch.trim());
     setSearchingAll(false);
     if (failed)
@@ -188,7 +176,7 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
       <section className="log-search-card">
         <div>
           <strong>Search inside all loaded logs</strong>
-          <span>Searches {result?.records.length ?? 0} loaded logs locally, up to 12 MB.</span>
+          <span>Searches every accessible loaded log body for this org.</span>
         </div>
         <div className="log-global-search">
           <input
@@ -215,6 +203,7 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
               type="button"
               onClick={() => {
                 setMatchingIds(undefined);
+                setMatchCounts(new Map());
                 setSearchedTerm('');
               }}
             >
@@ -224,10 +213,8 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
         </div>
         {searchedTerm && (
           <p className="log-search-summary">
-            {matchingIds?.size ?? 0} logs contain “{searchedTerm}”.
-            {searchProgress.skipped
-              ? ` ${searchProgress.skipped} oversized logs were skipped by the 12 MB safety limit.`
-              : ''}
+            {matchingIds?.size ?? 0} logs contain “{searchedTerm}”. All accessible loaded logs were
+            inspected.
           </p>
         )}
       </section>
@@ -241,6 +228,26 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
             <span>{result?.elapsedMs ?? 0} ms</span>
             <span>Developer logs</span>
           </div>
+          <TableActions
+            rows={visibleRecords}
+            columns={[
+              'StartTime',
+              'LogUser.Name',
+              'Operation',
+              'Status',
+              'LogLength',
+              'DurationMilliseconds',
+            ]}
+            columnLabels={{
+              StartTime: 'Start time',
+              'LogUser.Name': 'User',
+              Operation: 'Operation',
+              Status: 'Status',
+              LogLength: 'Size',
+              DurationMilliseconds: 'Duration (ms)',
+            }}
+            fileName="salesforce-debug-logs"
+          />
           <label className="result-filter">
             <span className="sr-only">Filter log metadata</span>
             <input
@@ -262,6 +269,7 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
                 <tr>
                   <th>#</th>
                   <th>Action</th>
+                  {matchingIds && <th>Matches</th>}
                   {[
                     'StartTime',
                     'LogUser.Name',
@@ -293,7 +301,7 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
                 {visibleRecords.map((record, index) => (
                   <tr
                     key={String(record.Id)}
-                    className={record.Id === selectedId ? 'selected-log-row' : ''}
+                    className={`${record.Id === selectedId ? 'selected-log-row' : ''} ${matchingIds?.has(String(record.Id)) ? 'log-search-match-row' : ''}`}
                   >
                     <td className="row-number">{index + 1}</td>
                     <td>
@@ -305,6 +313,13 @@ export function DebugLogsPage({ org }: { org?: OrgIdentity | undefined }) {
                         View log
                       </button>
                     </td>
+                    {matchingIds && (
+                      <td>
+                        <span className="log-match-badge">
+                          {matchCounts.get(String(record.Id)) ?? 0}
+                        </span>
+                      </td>
+                    )}
                     <td>{formatValue(record.StartTime)}</td>
                     <td>{formatValue(nestedValue(record, 'LogUser.Name'))}</td>
                     <td>{formatValue(record.Operation)}</td>
@@ -453,6 +468,18 @@ function formatBytes(value: unknown) {
   if (typeof value !== 'number') return '';
   if (value < 1024) return `${value} B`;
   return `${(value / 1024).toFixed(value < 10240 ? 1 : 0)} KB`;
+}
+
+function countOccurrences(body: string, term: string): number {
+  if (!term) return 0;
+  const haystack = body.toLowerCase();
+  let count = 0;
+  let index = 0;
+  while ((index = haystack.indexOf(term, index)) !== -1) {
+    count += 1;
+    index += Math.max(1, term.length);
+  }
+  return count;
 }
 
 function logColumnLabel(column: string) {

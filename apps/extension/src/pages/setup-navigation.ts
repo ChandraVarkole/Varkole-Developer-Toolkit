@@ -9,6 +9,7 @@ export const SETUP_PATHS = {
   sessionSettings: '/lightning/setup/SecuritySession/home',
   apexTestExecution: '/lightning/setup/ApexTestQueue/home',
   debugLogs: '/lightning/setup/ApexDebugLogs/home',
+  remoteSites: '/lightning/setup/SecurityRemoteProxy/home',
 } as const;
 
 const ALLOWED_SETUP_PATHS = new Set<string>(Object.values(SETUP_PATHS));

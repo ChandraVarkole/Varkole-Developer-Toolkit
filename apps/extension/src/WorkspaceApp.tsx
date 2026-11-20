@@ -19,6 +19,8 @@ import { OrgInfoPage } from './pages/OrgInfoPage';
 import { PermissionComparatorPage } from './pages/PermissionComparatorPage';
 import { RecordsPage } from './pages/RecordsPage';
 import { ReadOnlyQueryPage } from './pages/ReadOnlyQueryPage';
+import { UsersLoginsPage } from './pages/UsersLoginsPage';
+import { AccessAssignmentsPage } from './pages/AccessAssignmentsPage';
 import { READ_ONLY_MODULES } from './pages/read-only-modules';
 import { RunApexPage } from './pages/RunApexPage';
 import { SoqlPage } from './pages/SoqlPage';
@@ -58,7 +60,7 @@ const MODULES: ModuleItem[] = [
   { id: 'export', label: 'Export', icon: '↓', available: true, group: 'Build' },
   { id: 'import', label: 'Import', icon: '↑', available: true, group: 'Build' },
   { id: 'coverage', label: 'Code Coverage', icon: '◔', available: true, group: 'Build' },
-  { id: 'users', label: 'Users', icon: '♙', available: true, group: 'Admin' },
+  { id: 'users', label: 'Users / Logins', icon: '♙', available: true, group: 'Admin' },
   { id: 'access', label: 'Access Assignments', icon: '⌾', available: true, group: 'Admin' },
   {
     id: 'permission-compare',
@@ -321,6 +323,16 @@ export function WorkspaceApp() {
             />
           ) : activeModule.id === 'coverage' ? (
             <CoveragePage
+              key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}`}
+              org={selectedOrg}
+            />
+          ) : activeModule.id === 'users' ? (
+            <UsersLoginsPage
+              key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}`}
+              org={selectedOrg}
+            />
+          ) : activeModule.id === 'access' ? (
+            <AccessAssignmentsPage
               key={`${selectedOrg?.key ?? 'none'}:${String(selectedOrg?.connected)}`}
               org={selectedOrg}
             />

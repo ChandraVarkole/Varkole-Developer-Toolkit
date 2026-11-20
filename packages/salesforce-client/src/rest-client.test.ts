@@ -138,6 +138,66 @@ describe('SalesforceRestClient describe', () => {
     );
   });
 
+  it('falls back to FIELDS(ALL) when a User record endpoint returns only its ID', async () => {
+    const userId = '0051G00000ABCdeQAH';
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation((input) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes('/ui-api/records/')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ id: userId, apiName: 'User', fields: {} }), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      if (url.endsWith('/sobjects/User/describe')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ name: 'User', label: 'User', fields: [] }), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      if (url.endsWith(`/sobjects/User/${userId}`)) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ Id: userId }), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            totalSize: 1,
+            done: true,
+            records: [{ Id: userId, Name: 'Ada User', Username: 'ada@example.com' }],
+          }),
+          { headers: { 'Content-Type': 'application/json' } },
+        ),
+      );
+    });
+    const client = new SalesforceRestClient({
+      transport: new SalesforceTransport({
+        instanceUrl: 'https://acme.my.salesforce.com',
+        accessToken: 'secret',
+        fetchImpl,
+      }),
+      apiVersion: '68.0',
+    });
+
+    await expect(client.inspectRecord(userId)).resolves.toMatchObject({
+      objectApiName: 'User',
+      record: { Id: userId, Name: 'Ada User', Username: 'ada@example.com' },
+    });
+    expect(
+      fetchImpl.mock.calls.some(([input]) => {
+        const url =
+          typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        return decodeURIComponent(url).includes(
+          `SELECT FIELDS(ALL) FROM User WHERE Id = '${userId}'`,
+        );
+      }),
+    ).toBe(true);
+  });
+
   it('falls back to the global key-prefix map when UI API resolution is unavailable', async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockImplementation((input) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;

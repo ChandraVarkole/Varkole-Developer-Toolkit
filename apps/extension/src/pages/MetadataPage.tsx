@@ -6,7 +6,10 @@ import type {
   SalesforceObjectSummary,
 } from '@varkole/shared';
 import { sendMessage } from '../api';
-import { objectDisplayLabel, sortSalesforceObjects } from '../components/object-suggestions';
+import {
+  objectDisplayLabel,
+  sortSalesforceObjectsDescending,
+} from '../components/object-suggestions';
 import { QueryResults } from '../components/QueryResults';
 import { EmptyState, InlineError } from '../components/Status';
 import { useAutoLoad } from '../useAutoLoad';
@@ -30,7 +33,7 @@ export function MetadataPage({ org }: { org?: OrgIdentity | undefined }) {
         type: 'GET_OBJECTS',
         payload: { key: org.key },
       });
-      const sorted = sortSalesforceObjects(next);
+      const sorted = sortSalesforceObjectsDescending(next);
       setObjects(sorted);
       if (selectedName && !sorted.some((object) => object.name === selectedName))
         setSelectedName('');
@@ -77,7 +80,7 @@ export function MetadataPage({ org }: { org?: OrgIdentity | undefined }) {
 
   const visibleObjects = useMemo(() => {
     const needle = objectFilter.trim().toLowerCase();
-    return sortSalesforceObjects(
+    return sortSalesforceObjectsDescending(
       objects.filter((object) => {
         const label = objectDisplayLabel(object);
         return (

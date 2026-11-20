@@ -6,6 +6,7 @@ import {
   objectSearchInputState,
   objectSelectionLabel,
   sortSalesforceObjects,
+  sortSalesforceObjectsDescending,
 } from './object-suggestions';
 
 const objects: SalesforceObjectSummary[] = [
@@ -26,6 +27,19 @@ describe('Salesforce object suggestions', () => {
       'Accounts',
       'Alpha_Missing__c',
       'Zulu',
+    ]);
+  });
+
+  it('sorts schema objects Z to A while keeping special-character labels last', () => {
+    const input = [
+      ...objects,
+      { name: '_Internal__c', label: '_Internal', custom: true, queryable: true, searchable: true },
+    ];
+    expect(sortSalesforceObjectsDescending(input).map(objectDisplayLabel)).toEqual([
+      'Zulu',
+      'Alpha_Missing__c',
+      'Accounts',
+      '_Internal',
     ]);
   });
 

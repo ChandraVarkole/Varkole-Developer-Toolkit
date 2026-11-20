@@ -23,6 +23,7 @@ export function ObjectFieldPicker({
   onDescribeLoaded,
   showFields = true,
   expandedFields = false,
+  onToggleFields,
 }: {
   org: OrgIdentity;
   objectApiName: string;
@@ -33,6 +34,7 @@ export function ObjectFieldPicker({
   onDescribeLoaded?: ((describe: SalesforceObjectDescribe) => void) | undefined;
   showFields?: boolean | undefined;
   expandedFields?: boolean | undefined;
+  onToggleFields?: (() => void) | undefined;
 }) {
   const [objects, setObjects] = useState<SalesforceObjectSummary[]>([]);
   const [objectDraft, setObjectDraft] = useState<string>();
@@ -151,7 +153,18 @@ export function ObjectFieldPicker({
     <div className={`schema-assistant ${expandedFields ? 'expanded-fields' : ''}`}>
       <div className="schema-assistant-header">
         <strong>{showFields ? 'Choose object and fields' : 'Choose object'}</strong>
-        {loadingObjects && <span className="muted">Loading objects…</span>}
+        <div className="schema-header-actions">
+          {loadingObjects && <span className="muted">Loading objects…</span>}
+          {onToggleFields && (
+            <button
+              className={`button button-compact field-visibility-toggle ${showFields ? 'is-visible' : 'is-hidden'}`}
+              type="button"
+              onClick={onToggleFields}
+            >
+              {showFields ? 'Hide fields' : 'Show fields'}
+            </button>
+          )}
+        </div>
       </div>
       <div className={`schema-controls ${showFields ? '' : 'single'}`}>
         <label>
